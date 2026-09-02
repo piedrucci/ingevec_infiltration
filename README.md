@@ -57,3 +57,12 @@ Antes de producción se debe configurar el reverse proxy y los registros Cloudfl
 ## Importación Excel
 
 Sólo un administrador puede llamar `POST /v1/imports/excel` con el archivo `.xlsx`. En v1 se procesa exclusivamente la hoja `Año 2026`; las hojas históricas se preservan en el archivo original pero no se cargan. El proceso almacena el archivo original en SeaweedFS privado, conserva cada fila como JSON auditable y normaliza las filas válidas. Una carga con el mismo SHA-256 es idempotente y no duplica registros.
+
+## Consultas para la UI administrativa
+
+Estas rutas requieren un token de Keycloak con el rol `admin`. Todas son paginadas: `limit` acepta de 1 a 100 y `offset` permite avanzar por los resultados.
+
+- `GET /v1/projects?search=712&limit=50&offset=0`: devuelve obra, nombre, tipología, ubicación, recepción municipal, supervisor, gerente y administrador de proyecto.
+- `GET /v1/postventa-items?project_id=712&search=ventana&document_status=PENDING_REVIEW&limit=50&offset=0`: devuelve el ítem de postventa, proyecto, catálogos relacionados, causa de falla y el documento asociado si existe. Los filtros son opcionales.
+
+Cada respuesta tiene la forma `{ "items": [...], "page": { "total": 0, "limit": 50, "offset": 0 } }`.
