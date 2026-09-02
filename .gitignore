@@ -14,4 +14,4 @@ superset_home/
 seaweedfs_data/
 nats_data/
 keycloak_data/
-
+data/*

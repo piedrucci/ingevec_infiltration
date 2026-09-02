@@ -1,6 +1,7 @@
 import uuid
+from decimal import Decimal
 from datetime import date, datetime
-from sqlalchemy import Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from app.db import Base
@@ -26,6 +27,68 @@ class ExcelSourceRow(Base):
 class Project(Base):
     __tablename__='project'; __table_args__={'schema':'app'}
     id: Mapped[str] = mapped_column(String(100), primary_key=True); public_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), unique=True, default=uuid.uuid4, server_default=func.gen_random_uuid(), nullable=False); name: Mapped[str] = mapped_column(String(255), nullable=False); typology_id: Mapped[int] = mapped_column(ForeignKey('app.typology.id'), nullable=False); location_id: Mapped[int] = mapped_column(ForeignKey('app.location.id'), nullable=False); municipal_reception_date: Mapped[date | None] = mapped_column(Date); supervisor_id: Mapped[int] = mapped_column(ForeignKey('app.supervisor.id'), nullable=False); project_admin_id: Mapped[int | None] = mapped_column(ForeignKey('app.project_admin.id'))
+class FailureCause(Base):
+    __tablename__ = 'failure_cause'
+    __table_args__ = (
+        UniqueConstraint('code', name='uq_failure_cause_code'),
+        {'schema': 'app'},
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    code: Mapped[str] = mapped_column(String(100), nullable=False)
+    display_name_es: Mapped[str] = mapped_column(String(255), nullable=False)
+    category_code: Mapped[str] = mapped_column(String(100), nullable=False)
+    category_name_es: Mapped[str] = mapped_column(String(255), nullable=False)
+    description_es: Mapped[str | None] = mapped_column(Text)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
 class PostventaItem(Base):
     __tablename__='postventa_item'; __table_args__={'schema':'app'}
-    id: Mapped[int] = mapped_column(Integer, primary_key=True); public_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), unique=True, default=uuid.uuid4, server_default=func.gen_random_uuid(), nullable=False); source_row_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('app.excel_source_row.id', ondelete='CASCADE'), unique=True); project_id: Mapped[str] = mapped_column(ForeignKey('app.project.id'), nullable=False); classification_id: Mapped[int] = mapped_column(ForeignKey('app.classification.id'), nullable=False); item_type_id: Mapped[int] = mapped_column(ForeignKey('app.item_type.id'), nullable=False); notes: Mapped[str] = mapped_column(Text, nullable=False); request_date: Mapped[date | None] = mapped_column(Date); subcontractor_id: Mapped[int | None] = mapped_column(ForeignKey('app.subcontractor.id')); handled_by: Mapped[str | None] = mapped_column(String(255))
+    id: Mapped[int] = mapped_column(Integer, primary_key=True); public_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), unique=True, default=uuid.uuid4, server_default=func.gen_random_uuid(), nullable=False); source_row_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('app.excel_source_row.id', ondelete='CASCADE'), unique=True); project_id: Mapped[str] = mapped_column(ForeignKey('app.project.id'), nullable=False); classification_id: Mapped[int] = mapped_column(ForeignKey('app.classification.id'), nullable=False); item_type_id: Mapped[int] = mapped_column(ForeignKey('app.item_type.id'), nullable=False); failure_cause_id: Mapped[int | None] = mapped_column(ForeignKey('app.failure_cause.id', ondelete='RESTRICT')); notes: Mapped[str] = mapped_column(Text, nullable=False); request_date: Mapped[date | None] = mapped_column(Date); subcontractor_id: Mapped[int | None] = mapped_column(ForeignKey('app.subcontractor.id')); handled_by: Mapped[str | None] = mapped_column(String(255))
+
+
+class Document(Base):
+    __tablename__ = 'document'
+    __table_args__ = (
+        CheckConstraint('file_size_bytes > 0 AND file_size_bytes <= 5242880', name='ck_document_file_size_bytes'),
+        CheckConstraint("status IN ('UPLOADING', 'QUEUED', 'PROCESSING', 'MATCHED', 'PENDING_REVIEW', 'FAILED', 'QUARANTINED')", name='ck_document_status'),
+        CheckConstraint('matching_confidence IS NULL OR matching_confidence BETWEEN 0 AND 1', name='ck_document_matching_confidence'),
+        UniqueConstraint('public_id', name='uq_document_public_id'),
+        UniqueConstraint('content_hash', name='uq_document_content_hash'),
+        UniqueConstraint('object_key', name='uq_document_object_key'),
+        {'schema': 'app'},
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    public_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), default=uuid.uuid4, server_default=func.gen_random_uuid(), nullable=False)
+    bucket: Mapped[str] = mapped_column(String(255), nullable=False)
+    object_key: Mapped[str] = mapped_column(String(1024), nullable=False)
+    original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    file_size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    content_type: Mapped[str] = mapped_column(String(255), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default='UPLOADING')
+    matching_confidence: Mapped[Decimal | None] = mapped_column(Numeric(5, 4))
+    extracted_data: Mapped[dict | None] = mapped_column(JSONB)
+    extracted_failure_cause: Mapped[str | None] = mapped_column(Text)
+    processing_error: Mapped[str | None] = mapped_column(Text)
+    uploaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class DocumentPostventaItem(Base):
+    __tablename__ = 'document_postventa_item'
+    __table_args__ = (
+        CheckConstraint("association_source IN ('AUTOMATIC', 'MANUAL')", name='ck_document_postventa_item_association_source'),
+        CheckConstraint('confidence IS NULL OR confidence BETWEEN 0 AND 1', name='ck_document_postventa_item_confidence'),
+        {'schema': 'app'},
+    )
+
+    document_id: Mapped[int] = mapped_column(ForeignKey('app.document.id', ondelete='CASCADE'), primary_key=True)
+    postventa_item_id: Mapped[int] = mapped_column(ForeignKey('app.postventa_item.id', ondelete='CASCADE'), primary_key=True)
+    association_source: Mapped[str] = mapped_column(String(16), nullable=False)
+    confidence: Mapped[Decimal | None] = mapped_column(Numeric(5, 4))
+    rationale: Mapped[str | None] = mapped_column(Text)
+    associated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)

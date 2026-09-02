@@ -19,6 +19,35 @@ La base de aplicación nunca vive en el VPS. Las credenciales de Neon y Gemini s
 
 La API queda en `http://localhost:8000`; la documentación en `/docs`.
 
+### Comandos para iniciar y comprobar la API
+
+Desde la raíz del repositorio, iniciar todos los servicios de desarrollo en primer plano:
+
+```bash
+docker compose --env-file .env.development -f compose.yaml -f compose.dev.yaml up --build
+```
+
+Para dejarlos ejecutándose en segundo plano:
+
+```bash
+docker compose --env-file .env.development -f compose.yaml -f compose.dev.yaml up -d --build
+```
+
+Comprobar que la API está disponible:
+
+```bash
+curl http://localhost:8000/health
+```
+
+La respuesta esperada es `{"status":"ok","environment":"development"}`. Consultar el estado y los logs de la API con:
+
+```bash
+docker compose --env-file .env.development -f compose.yaml -f compose.dev.yaml ps
+docker compose --env-file .env.development -f compose.yaml -f compose.dev.yaml logs -f api
+```
+
+Detener los servicios con `docker compose --env-file .env.development -f compose.yaml -f compose.dev.yaml down`. Si el inicio falla indicando que el puerto `8080` está ocupado, otro proceso ya usa el puerto de Keycloak; la API puede seguir disponible en el puerto `8000`.
+
 ## Producción
 
 Copiar `config/production.env.example` a un archivo protegido del servidor. Ejecutar `docker compose --env-file /ruta/production.env -f compose.yaml -f compose.prod.yaml up -d --build`.

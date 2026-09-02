@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     OIDC_JWKS_URL: AnyHttpUrl
     PRESIGNED_URL_TTL_SECONDS: int = Field(default=3600, ge=60, le=3600)
     MAX_EXCEL_SIZE_BYTES: int = Field(default=26_214_400, ge=1, le=26_214_400)
-    MAX_PDF_SIZE_BYTES: int = Field(default=26_214_400, ge=1, le=26_214_400)
+    MAX_PDF_SIZE_BYTES: int = Field(default=5_242_880, ge=1, le=5_242_880)
 
 
 @lru_cache
