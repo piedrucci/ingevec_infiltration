@@ -13,6 +13,9 @@ services:
   seaweedfs:
     ports:
       - "8333:8333"
+      # Filer UI for local developer administration only; it is not protected
+      # by Keycloak and must never be published in the production overlay.
+      - "127.0.0.1:8888:8888"
   keycloak:
     command: start-dev --import-realm
     ports:

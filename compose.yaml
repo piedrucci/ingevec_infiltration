@@ -39,9 +39,10 @@ services:
 
   seaweedfs:
     image: chrislusf/seaweedfs:3.81
-    command: server -s3 -dir=/data -ip=seaweedfs -s3.allowedOrigins=http://localhost:5173,https://app.capix.cloud
+    command: server -s3 -dir=/data -ip=seaweedfs -s3.config=/etc/seaweedfs/s3.json -s3.allowedOrigins=http://localhost:5173,https://app.capix.cloud
     volumes:
       - seaweedfs_data:/data
+      - ./infra/seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
     restart: unless-stopped
 
   keycloak-db:
