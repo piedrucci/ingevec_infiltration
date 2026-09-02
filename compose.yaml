@@ -27,9 +27,10 @@ services:
 
   nats:
     image: nats:2.10-alpine
-    command: ["-js", "-sd", "/data", "-m", "8222"]
+    command: ["-c", "/etc/nats/nats.conf"]
     volumes:
       - nats_data:/data
+      - ./infra/nats/nats.conf:/etc/nats/nats.conf:ro
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--spider", "http://localhost:8222/healthz"]

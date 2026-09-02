@@ -1,4 +1,21 @@
 services:
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    environment:
+      VITE_API_PROXY_TARGET: http://api:8000
+      VITE_KEYCLOAK_URL: http://localhost:8080
+      VITE_KEYCLOAK_REALM: ingevec-development
+      VITE_KEYCLOAK_CLIENT_ID: ingevec-web
+    depends_on:
+      - api
+      - keycloak
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./apps/web:/app
+      - web_node_modules:/app/node_modules
   api:
     ports:
       - "8000:8000"
@@ -25,3 +42,6 @@ services:
   superset:
     ports:
       - "8088:8088"
+
+volumes:
+  web_node_modules:

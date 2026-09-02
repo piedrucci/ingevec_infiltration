@@ -18,6 +18,7 @@ La base de aplicación nunca vive en el VPS. Las credenciales de Neon y Gemini s
 3. Iniciar: `docker compose --env-file .env.development -f compose.yaml -f compose.dev.yaml up --build`.
 
 La API queda en `http://localhost:8000`; la documentación en `/docs`.
+La UI administrativa queda en `http://localhost:5173` y redirige a Keycloak al abrirla.
 
 ### Comandos para iniciar y comprobar la API
 
@@ -47,6 +48,21 @@ docker compose --env-file .env.development -f compose.yaml -f compose.dev.yaml l
 ```
 
 Detener los servicios con `docker compose --env-file .env.development -f compose.yaml -f compose.dev.yaml down`. Si el inicio falla indicando que el puerto `8080` está ocupado, otro proceso ya usa el puerto de Keycloak; la API puede seguir disponible en el puerto `8000`.
+
+### UI administrativa
+
+La aplicación React está en `apps/web/`. Con los servicios Docker en ejecución, abrir `http://localhost:5173`, iniciar sesión con un usuario que tenga el rol `admin` y seleccionar una obra para ver sus ítems de postventa.
+
+Para ejecutar la UI fuera de Docker:
+
+```bash
+cd apps/web
+cp .env.example .env.local
+npm install
+npm run dev
+```
+
+El proxy de Vite entrega las llamadas `/v1` al API local. No guardar tokens ni secretos de Keycloak en archivos del frontend.
 
 ## Producción
 
