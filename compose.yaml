@@ -39,7 +39,7 @@ services:
 
   seaweedfs:
     image: chrislusf/seaweedfs:3.81
-    command: server -s3 -dir=/data -ip=seaweedfs
+    command: server -s3 -dir=/data -ip=seaweedfs -s3.allowedOrigins=http://localhost:5173,https://app.capix.cloud
     volumes:
       - seaweedfs_data:/data
     restart: unless-stopped

@@ -1,0 +1,53 @@
+{
+  "realm": "ingevec-development",
+  "enabled": true,
+  "displayName": "Ingevec Development",
+  "roles": {
+    "realm": [
+      { "name": "admin", "description": "Administrates Ingevec postventa" },
+      { "name": "viewer", "description": "Views Ingevec postventa" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "ingevec-api",
+      "name": "Ingevec API",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "bearerOnly": true,
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false
+    },
+    {
+      "clientId": "ingevec-web",
+      "name": "Ingevec Admin Web",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": [
+        "http://localhost:5173/*",
+        "https://app.capix.cloud/*"
+      ],
+      "webOrigins": [
+        "http://localhost:5173",
+        "https://app.capix.cloud"
+      ],
+      "protocolMappers": [
+        {
+          "name": "ingevec-api audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "ingevec-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -14,10 +14,11 @@ services:
     ports:
       - "8333:8333"
   keycloak:
-    command: start-dev
+    command: start-dev --import-realm
     ports:
       - "8080:8080"
+    volumes:
+      - ./infra/keycloak/realm-development.json:/opt/keycloak/data/import/realm-development.json:ro
   superset:
     ports:
       - "8088:8088"
-
