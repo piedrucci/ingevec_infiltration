@@ -9,14 +9,15 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.102.8",
     "keycloak-js": "^26.2.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   },
   "devDependencies": {
+    "@types/node": "^24.5.2",
     "@types/react": "^19.1.10",
     "@types/react-dom": "^19.1.7",
-    "@types/node": "^24.5.2",
     "@vitejs/plugin-react": "^5.0.2",
     "typescript": "^5.9.2",
     "vite": "^7.1.7"

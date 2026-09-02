@@ -1,54 +1,32 @@
-import { FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useState } from "react";
 
-import { getPostventaItems, getProjects } from "./api";
 import { isAdmin, logout } from "./auth";
-import type { PostventaItem, Project } from "./types";
+import { usePostventaItems } from "./queries/postventa-items";
+import { useProjects } from "./queries/projects";
+import type { Project } from "./types";
 
 const formatDate = (value: string | null) => value ? new Intl.DateTimeFormat("es-CL").format(new Date(`${value}T00:00:00`)) : "-";
 
 export function App() {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [items, setItems] = useState<PostventaItem[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [projectSearch, setProjectSearch] = useState("");
 
-  const loadProjects = async (term = "") => {
-    setLoading(true);
-    setError("");
-    try {
-      const response = await getProjects(term);
-      setProjects(response.items);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "No fue posible cargar los proyectos.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const projectsQuery = useProjects(projectSearch);
+  const itemsQuery = usePostventaItems(selectedProject?.id ?? null);
+  const projects = projectsQuery.data?.items ?? [];
+  const items = itemsQuery.data?.items ?? [];
+  const error = projectsQuery.error ?? itemsQuery.error;
+  const loading = projectsQuery.isLoading || itemsQuery.isLoading;
 
-  useEffect(() => { void loadProjects(); }, []);
-
-  const selectProject = async (project: Project) => {
+  const selectProject = (project: Project) => {
     setSelectedProject(project);
-    setItems([]);
-    setLoading(true);
-    setError("");
-    try {
-      const response = await getPostventaItems(project.id);
-      setItems(response.items);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "No fue posible cargar los ítems.");
-    } finally {
-      setLoading(false);
-    }
   };
 
   const submitSearch = (event: FormEvent) => {
     event.preventDefault();
     setSelectedProject(null);
-    setItems([]);
-    void loadProjects(search);
+    setProjectSearch(search);
   };
 
   if (!isAdmin()) {
@@ -70,7 +48,7 @@ export function App() {
         </form>
       </section>
 
-      {error && <p className="error" role="alert">{error}</p>}
+      {error && <p className="error" role="alert">{error instanceof Error ? error.message : "No fue posible cargar la información."}</p>}
       {loading && <p className="loading">Cargando información…</p>}
 
       <section className="card">
