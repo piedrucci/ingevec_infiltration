@@ -1,6 +1,9 @@
 from zipfile import BadZipFile
+from urllib.parse import quote
+from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from botocore.exceptions import ClientError
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 from openpyxl.utils.exceptions import InvalidFileException
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
@@ -34,10 +37,12 @@ from app.schemas import (
     ProjectListResponse,
 )
 from app.services.excel_importer import import_workbook
+from app.services.storage import get_private_object
 
 imports_router = APIRouter(prefix="/imports", tags=["imports"])
 projects_router = APIRouter(prefix="/projects", tags=["projects"])
 postventa_items_router = APIRouter(prefix="/postventa-items", tags=["postventa-items"])
+documents_router = APIRouter(prefix="/documents", tags=["documents"])
 
 
 @imports_router.post("/excel", response_model=ExcelImportResponse, status_code=status.HTTP_201_CREATED)
@@ -52,6 +57,35 @@ async def import_excel(file: UploadFile = File(...), _: dict = Depends(require_a
     except (BadZipFile, InvalidFileException, ValueError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return ExcelImportResponse(import_id=imported.id, status=imported.status, row_count=imported.row_count, created=created)
+
+
+@documents_router.get("/{document_public_id}/content", responses={404: {"description": "Document not found"}})
+def get_document_content(
+    document_public_id: UUID,
+    _: dict = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> Response:
+    """Return a PDF without exposing its private object-storage location."""
+    document = db.scalar(select(Document).where(Document.public_id == document_public_id))
+    if document is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+
+    try:
+        content = get_private_object(document.object_key)
+    except ClientError as exc:
+        if exc.response.get("Error", {}).get("Code") in {"404", "NoSuchKey", "NoSuchObject"}:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document file not found") from exc
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Document storage is unavailable") from exc
+
+    filename = quote(document.original_filename, safe="")
+    return Response(
+        content=content,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"inline; filename*=UTF-8''{filename}",
+            "Cache-Control": "private, no-store",
+        },
+    )
 
 
 @projects_router.get("", response_model=ProjectListResponse)

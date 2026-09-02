@@ -1,5 +1,6 @@
 import { type FormEvent, useState } from "react";
 
+import { getDocumentPdf } from "./api";
 import { isAdmin, logout } from "./auth";
 import { usePostventaItems } from "./queries/postventa-items";
 import { useProjects } from "./queries/projects";
@@ -11,12 +12,13 @@ export function App() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [search, setSearch] = useState("");
   const [projectSearch, setProjectSearch] = useState("");
+  const [documentError, setDocumentError] = useState<Error | null>(null);
 
   const projectsQuery = useProjects(projectSearch);
   const itemsQuery = usePostventaItems(selectedProject?.id ?? null);
   const projects = projectsQuery.data?.items ?? [];
   const items = itemsQuery.data?.items ?? [];
-  const error = projectsQuery.error ?? itemsQuery.error;
+  const error = documentError ?? projectsQuery.error ?? itemsQuery.error;
   const loading = projectsQuery.isLoading || itemsQuery.isLoading;
 
   const selectProject = (project: Project) => {
@@ -27,6 +29,24 @@ export function App() {
     event.preventDefault();
     setSelectedProject(null);
     setProjectSearch(search);
+  };
+
+  const openDocument = async (documentPublicId: string) => {
+    setDocumentError(null);
+    const preview = window.open("", "_blank");
+    try {
+      const pdf = await getDocumentPdf(documentPublicId);
+      const objectUrl = URL.createObjectURL(pdf);
+      if (preview) {
+        preview.location.href = objectUrl;
+      } else {
+        window.open(objectUrl, "_blank", "noopener,noreferrer");
+      }
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+    } catch (reason) {
+      preview?.close();
+      setDocumentError(reason instanceof Error ? reason : new Error("No fue posible abrir el documento."));
+    }
   };
 
   if (!isAdmin()) {
@@ -66,7 +86,7 @@ export function App() {
         <div className="table-wrap"><table>
           <thead><tr><th>Ítem</th><th>Observación</th><th>Clasificación</th><th>Tipo</th><th>Causa</th><th>Documento</th></tr></thead>
           <tbody>{items.map((item) => <tr key={item.public_id}>
-            <td>{item.id}</td><td>{item.notes}</td><td>{item.classification}</td><td>{item.item_type}</td><td>{item.failure_cause?.display_name_es || "-"}</td><td>{item.document ? `${item.document.original_filename} · ${item.document.status}` : "Sin documento"}</td>
+            <td>{item.id}</td><td>{item.notes}</td><td>{item.classification}</td><td>{item.item_type}</td><td>{item.failure_cause?.display_name_es || "-"}</td><td>{item.document ? <button className="document-link" type="button" onClick={() => void openDocument(item.document!.public_id)}>{item.document.original_filename} · {item.document.status}</button> : "Sin documento"}</td>
           </tr>)}</tbody>
         </table></div>
       </section>}

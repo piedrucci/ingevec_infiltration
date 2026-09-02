@@ -10,6 +10,8 @@ main { margin: 0 auto; max-width: 1440px; padding: 2rem; }
 h1, h2, p { margin: 0; } h1 { font-size: 1.75rem; } h2 { font-size: 1.15rem; }
 .eyebrow { color: #52707e; font-size: .75rem; font-weight: 800; letter-spacing: .09em; margin-bottom: .35rem; }
 .secondary { background: #e4ecef; color: #1f4352; }
+.document-link { background: transparent; border: 0; color: #144f9c; cursor: pointer; font: inherit; padding: 0; text-align: left; text-decoration: underline; }
+.document-link:hover { background: transparent; color: #0b3975; }
 .toolbar { margin-bottom: 1rem; } .toolbar form { justify-content: flex-start; } label { font-weight: 700; } input { border: 1px solid #adc0c9; border-radius: 7px; min-width: 250px; padding: .65rem .75rem; }
 .card { background: white; border: 1px solid #d6e0e5; border-radius: 10px; box-shadow: 0 1px 2px rgb(25 58 72 / .06); margin-bottom: 1.25rem; overflow: hidden; }
 .section-title { padding: 1rem 1.25rem; } .section-title span { color: #52707e; font-size: .9rem; }
