@@ -30,4 +30,4 @@ From `apps/api`, run `pytest`. For schema work, run `alembic upgrade head` again
 
 - Only the `Año 2026` sheet is imported in v1.
 - Uploaded documents and source workbooks belong in the private S3-compatible bucket, never in a public path.
-- The PDF worker currently establishes NATS/JetStream but has no document-consumer implementation yet.
+- The PDF worker scans `incoming/` every 60 seconds, publishes through a transactional outbox, and consumes JetStream events. It moves confidently matched PDFs to `processed/`; uncertain matches go to `pending-review/`.

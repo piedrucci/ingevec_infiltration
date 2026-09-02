@@ -34,6 +34,16 @@ def clean(value: object) -> str | None:
     return text or None
 
 
+def project_identifier(value: object) -> str | None:
+    """Convert an Excel numeric work number to its business identifier safely."""
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    text = clean(value)
+    if text and re.fullmatch(r"\d+\.0+", text):
+        return text.split(".", 1)[0]
+    return text
+
+
 def as_date(value: object) -> date | None:
     if isinstance(value, datetime):
         return value.date()
@@ -144,7 +154,7 @@ def _normalize_row(db: Session, source: ExcelSourceRow, caches: dict) -> None:
     # The workbook contains two Item columns; the second is the business item type.
     item_type = _catalog(db, ItemType, _value(raw, "Item", occurrence=2), caches)
     subcontractor = _catalog(db, Subcontractor, _value(raw, "Subcontrato"), caches)
-    work_number = clean(_value(raw, "N° Obra"))
+    work_number = project_identifier(_value(raw, "N° Obra"))
     project_name = clean(_value(raw, "Proyecto"))
     notes = clean(_value(raw, "Obs"))
     required = {
@@ -273,7 +283,7 @@ def backfill_project_admins(db: Session, import_id) -> dict:
     updated = 0
     for source in rows:
         raw = source.raw_cells
-        work_number = clean(_value(raw, "N° Obra"))
+        work_number = project_identifier(_value(raw, "N° Obra"))
         division_name = clean(_value(raw, "GD"))
         manager_name = clean(_value(raw, "GP"))
         admin_name = clean(_value(raw, "AD"))
