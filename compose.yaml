@@ -1,0 +1,87 @@
+name: capix-ingevec
+
+services:
+  api:
+    build:
+      context: .
+      target: runtime
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    env_file: .env.${APP_ENV:?Set APP_ENV through the selected environment file}
+    depends_on:
+      nats:
+        condition: service_healthy
+      seaweedfs:
+        condition: service_started
+    restart: unless-stopped
+
+  pdf-worker:
+    build:
+      context: .
+      target: runtime
+    command: python -m app.worker.main
+    env_file: .env.${APP_ENV:?Set APP_ENV through the selected environment file}
+    depends_on:
+      nats:
+        condition: service_healthy
+    restart: unless-stopped
+
+  nats:
+    image: nats:2.10-alpine
+    command: ["-js", "-sd", "/data", "-m", "8222"]
+    volumes:
+      - nats_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:8222/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  seaweedfs:
+    image: chrislusf/seaweedfs:3.81
+    command: server -s3 -dir=/data -ip=seaweedfs
+    volumes:
+      - seaweedfs_data:/data
+    restart: unless-stopped
+
+  keycloak-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+    volumes:
+      - keycloak_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.1
+    command: start
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      KC_PROXY_HEADERS: xforwarded
+      KC_HOSTNAME: ${KEYCLOAK_HOSTNAME}
+      KC_HEALTH_ENABLED: "true"
+    depends_on:
+      keycloak-db:
+        condition: service_started
+    restart: unless-stopped
+
+  superset:
+    image: apache/superset:4.1.2
+    env_file: .env.${APP_ENV:?Set APP_ENV through the selected environment file}
+    environment:
+      SUPERSET_CONFIG_PATH: /app/pythonpath/superset_config.py
+    volumes:
+      - ./infra/superset/superset_config.py:/app/pythonpath/superset_config.py:ro
+    restart: unless-stopped
+
+volumes:
+  nats_data:
+  seaweedfs_data:
+  keycloak_data:

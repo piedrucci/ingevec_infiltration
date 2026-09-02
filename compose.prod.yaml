@@ -1,0 +1,46 @@
+services:
+  caddy:
+    image: caddy:2.8-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./infra/caddy/certs:/etc/caddy/certs:ro
+    depends_on:
+      - api
+      - keycloak
+      - superset
+    restart: unless-stopped
+  api:
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 512M
+  pdf-worker:
+    deploy:
+      resources:
+        limits:
+          cpus: "1.00"
+          memory: 1G
+  nats:
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+  seaweedfs:
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+  keycloak:
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+  superset:
+    deploy:
+      resources:
+        limits:
+          memory: 2G

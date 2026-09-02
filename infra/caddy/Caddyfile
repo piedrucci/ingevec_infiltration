@@ -1,0 +1,18 @@
+{
+    # Cloudflare provides the public TLS edge. Configure an Origin CA certificate
+    # at deployment time for Full (strict) mode, or use a trusted certificate.
+    auto_https off
+}
+
+https://api.capix.cloud {
+    reverse_proxy api:8000
+}
+
+https://auth.capix.cloud {
+    reverse_proxy keycloak:8080
+}
+
+https://bi.capix.cloud {
+    reverse_proxy superset:8088
+}
+

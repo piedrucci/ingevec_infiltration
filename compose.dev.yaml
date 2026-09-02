@@ -1,0 +1,23 @@
+services:
+  api:
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./apps/api/app:/app/app
+  pdf-worker:
+    volumes:
+      - ./apps/api/app:/app/app
+  nats:
+    ports:
+      - "8222:8222"
+  seaweedfs:
+    ports:
+      - "8333:8333"
+  keycloak:
+    command: start-dev
+    ports:
+      - "8080:8080"
+  superset:
+    ports:
+      - "8088:8088"
+
