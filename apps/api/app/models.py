@@ -74,7 +74,7 @@ class Document(Base):
     __tablename__ = 'document'
     __table_args__ = (
         CheckConstraint('file_size_bytes > 0 AND file_size_bytes <= 5242880', name='ck_document_file_size_bytes'),
-        CheckConstraint("status IN ('UPLOADING', 'QUEUED', 'PROCESSING', 'MATCHED', 'PENDING_REVIEW', 'FAILED', 'QUARANTINED')", name='ck_document_status'),
+        CheckConstraint("status IN ('UPLOADING', 'QUEUED', 'PROCESSING', 'MATCHED', 'PENDING_REVIEW', 'UNMATCHED', 'FAILED', 'QUARANTINED')", name='ck_document_status'),
         CheckConstraint('matching_confidence IS NULL OR matching_confidence BETWEEN 0 AND 1', name='ck_document_matching_confidence'),
         UniqueConstraint('public_id', name='uq_document_public_id'),
         UniqueConstraint('content_hash', name='uq_document_content_hash'),

@@ -30,22 +30,30 @@ async def main() -> None:
     )
     logger.info("PDF worker connected; scanning incoming/ every %s seconds", settings.PDF_SCAN_INTERVAL_SECONDS)
     next_scan = 0.0
+    next_outbox_publish = 0.0
     while True:
         now = asyncio.get_running_loop().time()
         if now >= next_scan:
             with SessionLocal() as db:
                 result = scan_incoming_documents(db)
-                published = await publish_pending_document_events(db, js)
-            if result.discovered or result.rejected or result.errors or published:
+            if result.discovered or result.rejected or result.errors:
                 logger.info(
-                    "PDF scan completed: discovered=%s skipped=%s rejected=%s errors=%s events_published=%s",
+                    "PDF scan completed: discovered=%s skipped=%s rejected=%s errors=%s",
                     result.discovered,
                     result.skipped,
                     result.rejected,
                     result.errors,
-                    published,
                 )
             next_scan = now + settings.PDF_SCAN_INTERVAL_SECONDS
+
+        if now >= next_outbox_publish:
+            with SessionLocal() as db:
+                published = await publish_pending_document_events(db, js)
+            if published:
+                logger.info(
+                    "Document outbox published events=%s", published,
+                )
+            next_outbox_publish = now + 1
 
         try:
             messages = await subscription.fetch(1, timeout=1)

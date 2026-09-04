@@ -36,3 +36,41 @@ export type PostventaItem = {
 };
 
 export type PageResponse<T> = { items: T[]; page: Page };
+
+export type DocumentStatus = "UPLOADING" | "QUEUED" | "PROCESSING" | "MATCHED" | "PENDING_REVIEW" | "UNMATCHED" | "FAILED" | "QUARANTINED";
+
+export type Document = DocumentSummary & {
+  matching_confidence: number | null;
+  extracted_data: Record<string, string | null> | null;
+  extracted_failure_cause: string | null;
+  processing_error: string | null;
+  association_count: number;
+};
+
+export type DocumentAssociation = {
+  postventa_item_public_id: string;
+  postventa_item_id: number;
+  project_id: string;
+  project_name: string;
+  notes: string;
+  association_source: "AUTOMATIC" | "MANUAL";
+  confidence: number | null;
+  rationale: string | null;
+};
+
+export type DocumentDetail = Document & { associations: DocumentAssociation[] };
+
+export type DocumentCandidate = {
+  postventa_item_public_id: string;
+  postventa_item_id: number;
+  project_id: string;
+  project_name: string;
+  notes: string;
+  score: number;
+};
+
+export type FailureCauseOption = {
+  code: string;
+  display_name_es: string;
+  category_name_es: string;
+};

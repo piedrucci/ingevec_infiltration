@@ -54,6 +54,58 @@ class DocumentSummary(BaseModel):
     processed_at: datetime | None
 
 
+class DocumentListItem(DocumentSummary):
+    matching_confidence: float | None
+    extracted_data: dict | None
+    extracted_failure_cause: str | None
+    processing_error: str | None
+    association_count: int
+
+
+class DocumentListResponse(BaseModel):
+    items: list[DocumentListItem]
+    page: PageMeta
+
+
+class DocumentAssociationItem(BaseModel):
+    postventa_item_public_id: UUID
+    postventa_item_id: int
+    project_id: str
+    project_name: str
+    notes: str
+    association_source: str
+    confidence: float | None
+    rationale: str | None
+
+
+class DocumentDetail(DocumentListItem):
+    associations: list[DocumentAssociationItem]
+
+
+class DocumentCandidate(BaseModel):
+    postventa_item_public_id: UUID
+    postventa_item_id: int
+    project_id: str
+    project_name: str
+    notes: str
+    score: float
+
+
+class DocumentCandidateResponse(BaseModel):
+    items: list[DocumentCandidate]
+
+
+class FailureCauseOption(BaseModel):
+    code: str
+    display_name_es: str
+    category_name_es: str
+
+
+class ManualDocumentAssociationRequest(BaseModel):
+    postventa_item_public_ids: list[UUID]
+    failure_cause_code: str
+
+
 class PostventaItemListItem(BaseModel):
     id: int
     public_id: UUID

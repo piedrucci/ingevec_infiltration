@@ -154,7 +154,7 @@ def process_document(db: Session, document_id: int) -> ProcessingResult:
     document = db.get(Document, document_id)
     if document is None:
         raise ValueError(f"Document {document_id} does not exist")
-    if document.status in {"MATCHED", "PENDING_REVIEW", "FAILED", "QUARANTINED"}:
+    if document.status in {"MATCHED", "PENDING_REVIEW", "UNMATCHED", "FAILED", "QUARANTINED"}:
         return ProcessingResult(document.id, document.status, 0)
 
     source_key = document.object_key
@@ -174,7 +174,9 @@ def process_document(db: Session, document_id: int) -> ProcessingResult:
             candidates = db.scalars(
                 select(PostventaItem)
                 .join(Project, Project.id == PostventaItem.project_id)
+                .outerjoin(DocumentPostventaItem, DocumentPostventaItem.postventa_item_id == PostventaItem.id)
                 .where(Project.id.like(f"{project_number}%"))
+                .where(DocumentPostventaItem.document_id.is_(None))
             ).all()
 
         selected = [
@@ -185,6 +187,10 @@ def process_document(db: Session, document_id: int) -> ProcessingResult:
 
         associated = 0
         for item, confidence in selected:
+            # An unclassified cause requires a deliberate admin decision. Do not
+            # consume the item with a partial automatic association.
+            if cause is None:
+                continue
             existing = db.scalar(
                 select(DocumentPostventaItem).where(DocumentPostventaItem.postventa_item_id == item.id)
             )
@@ -205,7 +211,7 @@ def process_document(db: Session, document_id: int) -> ProcessingResult:
             document.status = "MATCHED"
             _move_document(document, "processed")
         else:
-            document.status = "PENDING_REVIEW"
+            document.status = "PENDING_REVIEW" if candidates else "UNMATCHED"
             _move_document(document, "pending-review")
         document.processing_error = None
         document.processed_at = datetime.now(timezone.utc)
