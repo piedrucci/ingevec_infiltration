@@ -16,6 +16,7 @@ from app.models import (
     Document,
     DocumentPostventaItem,
     FailureCause,
+    FailureCauseCategory,
     ItemType,
     Location,
     PostventaItem,
@@ -175,6 +176,7 @@ def list_postventa_items(
             ItemType.name.label("item_type"),
             Subcontractor.name.label("subcontractor"),
             FailureCause,
+            FailureCauseCategory,
             Document,
         )
         .join(Project, Project.id == PostventaItem.project_id)
@@ -182,6 +184,7 @@ def list_postventa_items(
         .join(ItemType, ItemType.id == PostventaItem.item_type_id)
         .outerjoin(Subcontractor, Subcontractor.id == PostventaItem.subcontractor_id)
         .outerjoin(FailureCause, FailureCause.id == PostventaItem.failure_cause_id)
+        .outerjoin(FailureCauseCategory, FailureCauseCategory.id == FailureCause.category_id)
         .outerjoin(DocumentPostventaItem, DocumentPostventaItem.postventa_item_id == PostventaItem.id)
         .outerjoin(Document, Document.id == DocumentPostventaItem.document_id)
         .where(*filters)
@@ -205,9 +208,9 @@ def list_postventa_items(
                 failure_cause=FailureCauseSummary(
                     code=cause.code,
                     display_name_es=cause.display_name_es,
-                    category_code=cause.category_code,
-                    category_name_es=cause.category_name_es,
-                ) if cause else None,
+                    category_code=category.code,
+                    category_name_es=category.display_name_es,
+                ) if cause and category else None,
                 document=DocumentSummary(
                     public_id=document.public_id,
                     original_filename=document.original_filename,
@@ -216,7 +219,7 @@ def list_postventa_items(
                     processed_at=document.processed_at,
                 ) if document else None,
             )
-            for item, project_name, classification, item_type, subcontractor, cause, document in rows
+            for item, project_name, classification, item_type, subcontractor, cause, category, document in rows
         ],
         page=PageMeta(total=total, limit=limit, offset=offset),
     )

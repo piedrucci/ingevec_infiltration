@@ -1,7 +1,7 @@
 {
   "realm": "ingevec-development",
   "enabled": true,
-  "displayName": "Ingevec Development",
+  "displayName": "Ingevec Filtraciones",
   "roles": {
     "realm": [
       { "name": "admin", "description": "Administrates Ingevec postventa" },
@@ -27,14 +27,8 @@
       "publicClient": true,
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": false,
-      "redirectUris": [
-        "http://localhost:5173/*",
-        "https://app.capix.cloud/*"
-      ],
-      "webOrigins": [
-        "http://localhost:5173",
-        "https://app.capix.cloud"
-      ],
+      "redirectUris": ["http://localhost:5173/*", "https://app.capix.cloud/*"],
+      "webOrigins": ["http://localhost:5173", "https://app.capix.cloud"],
       "protocolMappers": [
         {
           "name": "ingevec-api audience",

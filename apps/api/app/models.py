@@ -27,6 +27,18 @@ class ExcelSourceRow(Base):
 class Project(Base):
     __tablename__='project'; __table_args__={'schema':'app'}
     id: Mapped[str] = mapped_column(String(100), primary_key=True); public_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), unique=True, default=uuid.uuid4, server_default=func.gen_random_uuid(), nullable=False); name: Mapped[str] = mapped_column(String(255), nullable=False); typology_id: Mapped[int] = mapped_column(ForeignKey('app.typology.id'), nullable=False); location_id: Mapped[int] = mapped_column(ForeignKey('app.location.id'), nullable=False); municipal_reception_date: Mapped[date | None] = mapped_column(Date); supervisor_id: Mapped[int] = mapped_column(ForeignKey('app.supervisor.id'), nullable=False); project_admin_id: Mapped[int | None] = mapped_column(ForeignKey('app.project_admin.id'))
+class FailureCauseCategory(Base):
+    __tablename__ = 'failure_cause_category'
+    __table_args__ = (UniqueConstraint('code', name='uq_failure_cause_category_code'), {'schema': 'app'})
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    code: Mapped[str] = mapped_column(String(100), nullable=False)
+    display_name_es: Mapped[str] = mapped_column(String(255), nullable=False)
+    description_es: Mapped[str | None] = mapped_column(Text)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
 class FailureCause(Base):
     __tablename__ = 'failure_cause'
     __table_args__ = (
@@ -37,10 +49,19 @@ class FailureCause(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     code: Mapped[str] = mapped_column(String(100), nullable=False)
     display_name_es: Mapped[str] = mapped_column(String(255), nullable=False)
-    category_code: Mapped[str] = mapped_column(String(100), nullable=False)
-    category_name_es: Mapped[str] = mapped_column(String(255), nullable=False)
+    category_id: Mapped[int] = mapped_column(ForeignKey('app.failure_cause_category.id', ondelete='RESTRICT'), nullable=False)
     description_es: Mapped[str | None] = mapped_column(Text)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class FailureCauseAlias(Base):
+    __tablename__ = 'failure_cause_alias'
+    __table_args__ = (UniqueConstraint('normalized_alias', name='uq_failure_cause_alias_normalized_alias'), {'schema': 'app'})
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    failure_cause_id: Mapped[int] = mapped_column(ForeignKey('app.failure_cause.id', ondelete='CASCADE'), nullable=False)
+    normalized_alias: Mapped[str] = mapped_column(String(255), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 

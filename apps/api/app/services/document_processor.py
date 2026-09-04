@@ -11,17 +11,13 @@ from pypdf import PdfReader
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Document, DocumentPostventaItem, FailureCause, PostventaItem, Project
+from app.models import Document, DocumentPostventaItem, FailureCause, FailureCauseAlias, PostventaItem, Project
 from app.services.storage import copy_private_object, delete_private_object, get_private_object
 
 
 def _normalized(value: str) -> str:
     text = unicodedata.normalize("NFKD", value)
     return re.sub(r"[^a-z0-9]+", " ", text.encode("ascii", "ignore").decode().lower()).strip()
-
-
-def _cause_code(value: str) -> str:
-    return "_".join(_normalized(value).upper().split())[:100] or "SIN_CAUSA_IDENTIFICADA"
 
 
 def _clean(value: str | None) -> str | None:
@@ -110,21 +106,25 @@ def _unit_identifier(value: str) -> str | None:
 
 
 def _failure_cause(db: Session, value: str | None) -> FailureCause | None:
+    """Resolve a raw PDF narrative to a reviewed, controlled cause.
+
+    Unknown wording deliberately returns ``None`` instead of creating a new
+    reporting dimension from free text. The document remains pending review.
+    """
     if not value:
         return None
-    code = _cause_code(value)
-    cause = db.scalar(select(FailureCause).where(FailureCause.code == code))
-    if cause is None:
-        cause = FailureCause(
-            code=code,
-            display_name_es=value[:255],
-            category_code="SIN_CATEGORIZAR",
-            category_name_es="Sin categorizar",
-            description_es=value,
-        )
-        db.add(cause)
-        db.flush()
-    return cause
+    normalized_value = _normalized(value)
+    aliases = db.execute(
+        select(FailureCauseAlias, FailureCause)
+        .join(FailureCause, FailureCause.id == FailureCauseAlias.failure_cause_id)
+        .where(FailureCause.is_active.is_(True))
+    ).all()
+    matches = [
+        (alias.normalized_alias, cause)
+        for alias, cause in aliases
+        if alias.normalized_alias in normalized_value
+    ]
+    return max(matches, key=lambda match: len(match[0]))[1] if matches else None
 
 
 def _destination_key(document: Document, folder: str) -> str:
@@ -201,7 +201,7 @@ def process_document(db: Session, document_id: int) -> ProcessingResult:
             item.failure_cause_id = cause.id if cause else None
             associated += 1
 
-        if associated:
+        if associated and cause:
             document.status = "MATCHED"
             _move_document(document, "processed")
         else:
