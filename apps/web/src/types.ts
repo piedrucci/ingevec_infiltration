@@ -74,3 +74,8 @@ export type FailureCauseOption = {
   display_name_es: string;
   category_name_es: string;
 };
+
+export type FailureCauseCategoryOption = {
+  code: string;
+  display_name_es: string;
+};

@@ -1,6 +1,6 @@
 import { queryOptions, useQuery } from "@tanstack/react-query";
 
-import { getDocument, getDocumentCandidates, getDocuments, getFailureCauses, getUnassociatedItems } from "../../api";
+import { getDocument, getDocumentCandidates, getDocuments, getFailureCauseCategories, getFailureCauses, getUnassociatedItems } from "../../api";
 import type { Document } from "../../types";
 
 export const documentQueryKeys = {
@@ -9,6 +9,7 @@ export const documentQueryKeys = {
   detail: (publicId: string) => [...documentQueryKeys.all, "detail", publicId] as const,
   candidates: (publicId: string) => [...documentQueryKeys.all, "candidates", publicId] as const,
   failureCauses: () => [...documentQueryKeys.all, "failure-causes"] as const,
+  failureCauseCategories: () => [...documentQueryKeys.all, "failure-cause-categories"] as const,
 };
 
 const isActive = (document: Document) => document.status === "QUEUED" || document.status === "PROCESSING" || document.status === "UPLOADING";
@@ -30,6 +31,10 @@ export function useDocumentCandidates(publicId: string | undefined, enabled = tr
 
 export function useFailureCauses() {
   return useQuery(queryOptions({ queryKey: documentQueryKeys.failureCauses(), queryFn: getFailureCauses }));
+}
+
+export function useFailureCauseCategories() {
+  return useQuery(queryOptions({ queryKey: documentQueryKeys.failureCauseCategories(), queryFn: getFailureCauseCategories }));
 }
 
 export function useUnassociatedItems(search: string) {

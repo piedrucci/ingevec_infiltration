@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class HealthResponse(BaseModel):
@@ -99,6 +99,18 @@ class FailureCauseOption(BaseModel):
     code: str
     display_name_es: str
     category_name_es: str
+
+
+class FailureCauseCategoryOption(BaseModel):
+    code: str
+    display_name_es: str
+
+
+class CreateFailureCauseRequest(BaseModel):
+    code: str = Field(min_length=2, max_length=100)
+    display_name_es: str = Field(min_length=2, max_length=255)
+    category_code: str = Field(min_length=2, max_length=100)
+    aliases: list[str] = Field(default_factory=list, max_length=20)
 
 
 class ManualDocumentAssociationRequest(BaseModel):

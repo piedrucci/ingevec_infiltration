@@ -1,5 +1,5 @@
 import { accessToken } from "./auth";
-import type { Document, DocumentCandidate, DocumentDetail, DocumentSummary, FailureCauseOption, PageResponse, PostventaItem, Project } from "./types";
+import type { Document, DocumentCandidate, DocumentDetail, DocumentSummary, FailureCauseCategoryOption, FailureCauseOption, PageResponse, PostventaItem, Project } from "./types";
 
 type ApiErrorDetail = string | { code?: string; document_public_id?: string; original_filename?: string };
 
@@ -81,6 +81,25 @@ export function getDocumentCandidates(documentPublicId: string): Promise<{ items
 
 export function getFailureCauses(): Promise<FailureCauseOption[]> {
   return request<FailureCauseOption[]>("/v1/documents/failure-causes");
+}
+
+export function getFailureCauseCategories(): Promise<FailureCauseCategoryOption[]> {
+  return request<FailureCauseCategoryOption[]>("/v1/documents/failure-cause-categories");
+}
+
+export function createFailureCause(input: { code: string; displayNameEs: string; categoryCode: string; aliases: string[] }): Promise<FailureCauseOption> {
+  return accessToken().then(async (token) => {
+    const response = await fetch("/v1/documents/failure-causes", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ code: input.code, display_name_es: input.displayNameEs, category_code: input.categoryCode, aliases: input.aliases }),
+    });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null) as { detail?: string } | null;
+      throw new Error(payload?.detail || `No fue posible crear la causa (${response.status}).`);
+    }
+    return response.json() as Promise<FailureCauseOption>;
+  });
 }
 
 export function associateDocument(documentPublicId: string, postventaItemPublicIds: string[], failureCauseCode: string): Promise<DocumentDetail> {

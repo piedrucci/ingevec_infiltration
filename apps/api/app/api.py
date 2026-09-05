@@ -39,6 +39,8 @@ from app.schemas import (
     ExcelImportResponse,
     FailureCauseSummary,
     FailureCauseOption,
+    FailureCauseCategoryOption,
+    CreateFailureCauseRequest,
     ManualDocumentAssociationRequest,
     PageMeta,
     PostventaItemListItem,
@@ -48,6 +50,7 @@ from app.schemas import (
 )
 from app.services.document_processor import _location_score, _move_document
 from app.services.document_upload import DuplicateDocumentError, register_pdf_upload
+from app.services.failure_causes import create_failure_cause
 from app.services.excel_importer import import_workbook
 from app.services.storage import delete_private_object, get_private_object
 
@@ -156,6 +159,41 @@ def list_failure_causes(_: dict = Depends(require_admin), db: Session = Depends(
         .order_by(FailureCauseCategory.display_name_es, FailureCause.display_name_es)
     ).all()
     return [FailureCauseOption(code=cause.code, display_name_es=cause.display_name_es, category_name_es=category.display_name_es) for cause, category in rows]
+
+
+@documents_router.get("/failure-cause-categories", response_model=list[FailureCauseCategoryOption])
+def list_failure_cause_categories(_: dict = Depends(require_admin), db: Session = Depends(get_db)) -> list[FailureCauseCategoryOption]:
+    rows = db.scalars(
+        select(FailureCauseCategory)
+        .where(FailureCauseCategory.is_active.is_(True))
+        .order_by(FailureCauseCategory.display_name_es)
+    ).all()
+    return [FailureCauseCategoryOption(code=category.code, display_name_es=category.display_name_es) for category in rows]
+
+
+@documents_router.post("/failure-causes", response_model=FailureCauseOption, status_code=status.HTTP_201_CREATED)
+def create_new_failure_cause(
+    payload: CreateFailureCauseRequest,
+    _: dict = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> FailureCauseOption:
+    try:
+        cause = create_failure_cause(
+            db,
+            code=payload.code,
+            display_name_es=payload.display_name_es,
+            category_code=payload.category_code,
+            aliases=payload.aliases,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except (ValueError, FileExistsError) as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="The failure cause or one of its aliases already exists") from exc
+    category = db.get(FailureCauseCategory, cause.category_id)
+    return FailureCauseOption(code=cause.code, display_name_es=cause.display_name_es, category_name_es=category.display_name_es)
 
 
 @documents_router.get("/{document_public_id}", response_model=DocumentDetail)
