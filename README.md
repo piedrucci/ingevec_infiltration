@@ -20,6 +20,42 @@ La base de aplicación nunca vive en el VPS. Las credenciales de Neon y Gemini s
 La API queda en `http://localhost:8000`; la documentación en `/docs`.
 La UI administrativa queda en `http://localhost:5173` y redirige a Keycloak al abrirla.
 
+### Superset local
+
+Superset queda disponible en `http://localhost:8088`. Sus metadatos (usuarios,
+dashboards y datasets) viven en el contenedor PostgreSQL local `superset-db`; no
+usa la base de aplicación de Neon para ese fin.
+
+Antes de iniciarlo, agregar estas variables protegidas a `.env.development`:
+
+```bash
+SUPERSET_DB_PASSWORD=<contraseña-local-robusta>
+SUPERSET_ADMIN_USERNAME=admin
+SUPERSET_ADMIN_PASSWORD=<contraseña-del-administrador>
+SUPERSET_ADMIN_FIRSTNAME=Ingevec
+SUPERSET_ADMIN_LASTNAME=Administrador
+SUPERSET_ADMIN_EMAIL=<correo-administrador>
+```
+
+Luego iniciar y comprobar el servicio:
+
+```bash
+docker compose --env-file .env.development -f compose.yaml -f compose.dev.yaml up -d --build superset-db superset
+docker compose --env-file .env.development -f compose.yaml -f compose.dev.yaml logs -f superset
+```
+
+Para crear o reconciliar la conexión analítica de solo lectura, ejecutar una vez:
+
+```bash
+docker compose --env-file .env.development -f compose.yaml -f compose.dev.yaml --profile provision run --rm superset-provisioner
+```
+
+El provisionador crea `superset_reader`, con permiso únicamente para consultar
+`analytics.postventa_item_dashboard`, y registra esa vista como dataset. Superset
+en ejecución no recibe la credencial propietaria de Neon. La integración OIDC con
+Keycloak se configurará con un cliente dedicado y la URL de redirección de
+Superset; no reutilizar el cliente de la UI administrativa.
+
 ### Comandos para iniciar y comprobar la API
 
 Desde la raíz del repositorio, iniciar todos los servicios de desarrollo en primer plano:

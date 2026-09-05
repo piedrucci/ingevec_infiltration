@@ -44,3 +44,8 @@ services:
       resources:
         limits:
           memory: 2G
+  superset-db:
+    deploy:
+      resources:
+        limits:
+          memory: 512M

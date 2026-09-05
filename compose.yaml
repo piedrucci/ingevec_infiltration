@@ -75,15 +75,73 @@ services:
     restart: unless-stopped
 
   superset:
-    image: apache/superset:4.1.2
+    build:
+      context: .
+      dockerfile: infra/superset/Dockerfile
+    environment:
+      SUPERSET_CONFIG_PATH: /app/pythonpath/ingevec/superset_config.py
+      SUPERSET_SECRET_KEY: ${SUPERSET_SECRET_KEY}
+      SUPERSET_DATABASE_URI: postgresql+psycopg2://superset:${SUPERSET_DB_PASSWORD}@superset-db:5432/superset
+      SUPERSET_ADMIN_USERNAME: ${SUPERSET_ADMIN_USERNAME}
+      SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD}
+      SUPERSET_ADMIN_FIRSTNAME: ${SUPERSET_ADMIN_FIRSTNAME}
+      SUPERSET_ADMIN_LASTNAME: ${SUPERSET_ADMIN_LASTNAME}
+      SUPERSET_ADMIN_EMAIL: ${SUPERSET_ADMIN_EMAIL}
+    command:
+      - /bin/sh
+      - -c
+      - >-
+        superset db upgrade &&
+        (superset fab create-admin
+        --username "$$SUPERSET_ADMIN_USERNAME"
+        --firstname "$$SUPERSET_ADMIN_FIRSTNAME"
+        --lastname "$$SUPERSET_ADMIN_LASTNAME"
+        --email "$$SUPERSET_ADMIN_EMAIL"
+        --password "$$SUPERSET_ADMIN_PASSWORD" || true) &&
+        superset init &&
+        /usr/bin/run-server.sh
+    volumes:
+      - ./infra/superset:/app/pythonpath/ingevec:ro
+      - superset_home:/app/superset_home
+    depends_on:
+      superset-db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  superset-provisioner:
+    build:
+      context: .
+      dockerfile: infra/superset/Dockerfile
+    profiles: ["provision"]
     env_file: .env.${APP_ENV:?Set APP_ENV through the selected environment file}
     environment:
-      SUPERSET_CONFIG_PATH: /app/pythonpath/superset_config.py
+      SUPERSET_CONFIG_PATH: /app/pythonpath/ingevec/superset_config.py
+      SUPERSET_DATABASE_URI: postgresql+psycopg2://superset:${SUPERSET_DB_PASSWORD}@superset-db:5432/superset
+    command: python /app/pythonpath/ingevec/configure_analytics.py
     volumes:
-      - ./infra/superset/superset_config.py:/app/pythonpath/superset_config.py:ro
+      - ./infra/superset:/app/pythonpath/ingevec:ro
+    depends_on:
+      superset-db:
+        condition: service_healthy
+
+  superset-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: superset
+      POSTGRES_USER: superset
+      POSTGRES_PASSWORD: ${SUPERSET_DB_PASSWORD}
+    volumes:
+      - superset_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U superset -d superset"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
     restart: unless-stopped
 
 volumes:
   nats_data:
   seaweedfs_data:
   keycloak_data:
+  superset_db_data:
+  superset_home:
