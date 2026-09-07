@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Document, DocumentPostventaItem, FailureCause, FailureCauseAlias, PostventaItem, Project
 from app.services.storage import copy_private_object, delete_private_object, get_private_object
+from app.services.dashboard_cache import invalidate_dashboard_summary
 
 
 def _normalized(value: str) -> str:
@@ -216,6 +217,7 @@ def process_document(db: Session, document_id: int) -> ProcessingResult:
         document.processing_error = None
         document.processed_at = datetime.now(timezone.utc)
         db.commit()
+        invalidate_dashboard_summary()
         try:
             delete_private_object(source_key)
         except Exception:
@@ -230,4 +232,5 @@ def process_document(db: Session, document_id: int) -> ProcessingResult:
             document.status = "FAILED"
             document.processing_error = str(exc)[:4000]
             db.commit()
+            invalidate_dashboard_summary()
         raise

@@ -4,6 +4,7 @@ import { isAdmin, logout } from "./auth";
 import { DocumentsPage } from "./features/documents/DocumentsPage";
 import { ReviewPage } from "./features/documents/ReviewPage";
 import { UploadPage } from "./features/documents/UploadPage";
+import { HomePage } from "./features/dashboard/HomePage";
 import { ProjectsPage } from "./features/projects/ProjectsPage";
 
 export function App() {
@@ -17,8 +18,8 @@ export function App() {
         <div><p className="eyebrow">INGEVEC · POSTVENTA</p><h1>Gestión de filtraciones</h1></div>
         <button className="secondary" onClick={() => void logout()}>Cerrar sesión</button>
       </header>
-      <nav className="app-nav"><NavLink to="/projects">Proyectos</NavLink><NavLink to="/documents/upload">Cargar PDFs</NavLink><NavLink to="/documents">Documentos</NavLink></nav>
-      <Routes><Route path="/projects" element={<ProjectsPage />} /><Route path="/documents/upload" element={<UploadPage />} /><Route path="/documents" element={<DocumentsPage />} /><Route path="/documents/:publicId/review" element={<ReviewPage />} /><Route path="*" element={<Navigate to="/projects" replace />} /></Routes>
+      <nav className="app-nav"><NavLink to="/">Inicio</NavLink><NavLink to="/projects">Proyectos</NavLink><NavLink to="/documents/upload">Cargar PDFs</NavLink><NavLink to="/documents">Documentos</NavLink></nav>
+      <Routes><Route path="/" element={<HomePage />} /><Route path="/projects" element={<ProjectsPage />} /><Route path="/documents/upload" element={<UploadPage />} /><Route path="/documents" element={<DocumentsPage />} /><Route path="/documents/:publicId/review" element={<ReviewPage />} /><Route path="*" element={<Navigate to="/" replace />} /></Routes>
     </main>
   );
 }

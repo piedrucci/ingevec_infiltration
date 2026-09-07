@@ -13,6 +13,10 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     DATABASE_URL: str
     NATS_URL: str
+    # Optional so a temporary Redis outage never prevents the API from serving
+    # the dashboard directly from Neon.
+    REDIS_URL: str | None = None
+    DASHBOARD_CACHE_TTL_SECONDS: int = Field(default=300, ge=30, le=3600)
     S3_ENDPOINT_URL: AnyHttpUrl
     S3_REGION: str = "us-east-1"
     S3_BUCKET: str

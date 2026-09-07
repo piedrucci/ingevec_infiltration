@@ -14,6 +14,7 @@ from app.models import (
     Location, PostventaItem, Project, ProjectAdmin, ProjectManager,
     Subcontractor, Supervisor, Typology,
 )
+from app.services.dashboard_cache import invalidate_dashboard_summary
 
 SHEET = "Año 2026"
 REQUIRED_HEADERS = {
@@ -270,6 +271,8 @@ def backfill_dates(db: Session, import_id) -> dict:
             project.municipal_reception_date = reception_date
             updated_projects += 1
     db.commit()
+    if updated_items or updated_projects:
+        invalidate_dashboard_summary()
     return {"updated_projects": updated_projects, "updated_items": updated_items}
 
 
@@ -306,6 +309,8 @@ def backfill_project_admins(db: Session, import_id) -> dict:
         project.project_admin_id = admin.id
         updated += 1
     db.commit()
+    if updated:
+        invalidate_dashboard_summary()
     return {"updated_projects": updated}
 
 
@@ -314,6 +319,7 @@ def import_workbook(db: Session, content: bytes, filename: str, row_limit: int |
     if created or imported.status in {"STAGED", "NORMALIZING"}:
         normalize_import(db, imported.id, max_rows=row_limit)
         db.refresh(imported)
+        invalidate_dashboard_summary()
     return imported, created
 
 

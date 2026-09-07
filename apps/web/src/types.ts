@@ -37,6 +37,29 @@ export type PostventaItem = {
 
 export type PageResponse<T> = { items: T[]; page: Page };
 
+export type DashboardBreakdown = { name: string; count: number };
+export type DashboardAssociationBreakdown = {
+  name: string;
+  items: number;
+  associated_items: number;
+  pending_items: number;
+  association_rate: number;
+};
+
+export type DashboardSummary = {
+  generated_at: string;
+  totals: {
+    items: number;
+    associated_items: number;
+    pending_items: number;
+    association_rate: number;
+    documents: number;
+    documents_by_status: Record<string, number>;
+  };
+  breakdowns: Record<string, DashboardBreakdown[]>;
+  project_manager_association_progress: DashboardAssociationBreakdown[];
+};
+
 export type DocumentStatus = "UPLOADING" | "QUEUED" | "PROCESSING" | "MATCHED" | "PENDING_REVIEW" | "UNMATCHED" | "FAILED" | "QUARANTINED";
 
 export type Document = DocumentSummary & {

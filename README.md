@@ -6,7 +6,7 @@ Backend para trazabilidad de postventa, importación controlada del Excel y proc
 
 | Entorno | Base de aplicación | Servicios locales |
 | --- | --- | --- |
-| development | Neon de desarrollo | API, worker, NATS, SeaweedFS, Keycloak y Superset |
+| development | Neon de desarrollo | API, worker, NATS, Redis, SeaweedFS, Keycloak y Superset |
 | production | Neon de producción | Los mismos servicios en el VPS |
 
 La base de aplicación nunca vive en el VPS. Las credenciales de Neon y Gemini son distintas en cada entorno y se inyectan mediante archivos de entorno no versionados.
@@ -19,6 +19,14 @@ La base de aplicación nunca vive en el VPS. Las credenciales de Neon y Gemini s
 
 La API queda en `http://localhost:8000`; la documentación en `/docs`.
 La UI administrativa queda en `http://localhost:5173` y redirige a Keycloak al abrirla.
+
+### Caché del inicio
+
+Redis es interno (sin puerto publicado) y se inicia junto con Compose. El endpoint
+`GET /v1/dashboard/summary` guarda sus agregados durante cinco minutos y se
+invalida al importar datos o cambiar documentos/asociaciones. Puede ajustarse con
+`DASHBOARD_CACHE_TTL_SECONDS`; si Redis no responde, la API consulta Neon sin
+interrumpir la UI.
 
 ### Superset local
 
@@ -116,5 +124,6 @@ Estas rutas requieren un token de Keycloak con el rol `admin`. Todas son paginad
 
 - `GET /v1/projects?search=712&limit=50&offset=0`: devuelve obra, nombre, tipología, ubicación, recepción municipal, supervisor, gerente y administrador de proyecto.
 - `GET /v1/postventa-items?project_id=712&search=ventana&document_status=PENDING_REVIEW&limit=50&offset=0`: devuelve el ítem de postventa, proyecto, catálogos relacionados, causa de falla y el documento asociado si existe. Los filtros son opcionales.
+- `GET /v1/dashboard/summary`: devuelve KPIs y agrupaciones para el Inicio administrativo.
 
 Cada respuesta tiene la forma `{ "items": [...], "page": { "total": 0, "limit": 50, "offset": 0 } }`.

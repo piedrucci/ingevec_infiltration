@@ -1,5 +1,5 @@
 import { accessToken } from "./auth";
-import type { Document, DocumentCandidate, DocumentDetail, DocumentSummary, FailureCauseCategoryOption, FailureCauseOption, PageResponse, PostventaItem, Project } from "./types";
+import type { DashboardSummary, Document, DocumentCandidate, DocumentDetail, DocumentSummary, FailureCauseCategoryOption, FailureCauseOption, PageResponse, PostventaItem, Project } from "./types";
 
 type ApiErrorDetail = string | { code?: string; document_public_id?: string; original_filename?: string };
 
@@ -33,6 +33,10 @@ export function getProjects(search = ""): Promise<PageResponse<Project>> {
   const query = new URLSearchParams({ limit: "100", offset: "0" });
   if (search.trim()) query.set("search", search.trim());
   return request<PageResponse<Project>>(`/v1/projects?${query}`);
+}
+
+export function getDashboardSummary(): Promise<DashboardSummary> {
+  return request<DashboardSummary>("/v1/dashboard/summary");
 }
 
 export function getPostventaItems(projectId: string): Promise<PageResponse<PostventaItem>> {

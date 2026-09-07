@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.models import Document, DocumentOutboxEvent
 from app.services.storage import s3_client
+from app.services.dashboard_cache import invalidate_dashboard_summary
 
 
 INCOMING_PREFIX = "incoming/"
@@ -107,6 +108,7 @@ def scan_incoming_documents(db: Session, client=None) -> ScanResult:
                     )
                 )
                 db.commit()
+                invalidate_dashboard_summary()
                 result.discovered += 1
                 logger.info("Discovered PDF document_id=%s key=%s", document.id, key)
             except IntegrityError:

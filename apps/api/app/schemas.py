@@ -9,6 +9,35 @@ class HealthResponse(BaseModel):
     environment: str
 
 
+class DashboardBreakdown(BaseModel):
+    name: str
+    count: int
+
+
+class DashboardAssociationBreakdown(BaseModel):
+    name: str
+    items: int
+    associated_items: int
+    pending_items: int
+    association_rate: float
+
+
+class DashboardTotals(BaseModel):
+    items: int
+    associated_items: int
+    pending_items: int
+    association_rate: float
+    documents: int
+    documents_by_status: dict[str, int]
+
+
+class DashboardSummary(BaseModel):
+    generated_at: datetime
+    totals: DashboardTotals
+    breakdowns: dict[str, list[DashboardBreakdown]]
+    project_manager_association_progress: list[DashboardAssociationBreakdown]
+
+
 class ExcelImportResponse(BaseModel):
     import_id: UUID
     status: str

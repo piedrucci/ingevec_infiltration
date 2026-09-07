@@ -29,6 +29,7 @@ from app.models import (
     Typology,
 )
 from app.schemas import (
+    DashboardSummary,
     DocumentAssociationItem,
     DocumentCandidate,
     DocumentCandidateResponse,
@@ -48,6 +49,8 @@ from app.schemas import (
     ProjectListItem,
     ProjectListResponse,
 )
+from app.services.dashboard import dashboard_summary
+from app.services.dashboard_cache import invalidate_dashboard_summary
 from app.services.document_processor import _location_score, _move_document
 from app.services.document_upload import DuplicateDocumentError, register_pdf_upload
 from app.services.failure_causes import create_failure_cause
@@ -58,6 +61,7 @@ imports_router = APIRouter(prefix="/imports", tags=["imports"])
 projects_router = APIRouter(prefix="/projects", tags=["projects"])
 postventa_items_router = APIRouter(prefix="/postventa-items", tags=["postventa-items"])
 documents_router = APIRouter(prefix="/documents", tags=["documents"])
+dashboard_router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 
 def _document_list_item(document: Document, association_count: int) -> DocumentListItem:
@@ -86,6 +90,8 @@ async def import_excel(file: UploadFile = File(...), _: dict = Depends(require_a
         imported, created = import_workbook(db, content, file.filename)
     except (BadZipFile, InvalidFileException, ValueError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    if created:
+        invalidate_dashboard_summary()
     return ExcelImportResponse(import_id=imported.id, status=imported.status, row_count=imported.row_count, created=created)
 
 
@@ -111,6 +117,7 @@ async def upload_document(file: UploadFile = File(...), _: dict = Depends(requir
             },
         ) from exc
     document = uploaded.document
+    invalidate_dashboard_summary()
     return DocumentSummary(
         public_id=document.public_id,
         original_filename=document.original_filename,
@@ -299,7 +306,14 @@ def create_manual_associations(
         delete_private_object(source_key)
     except Exception:
         pass
+    invalidate_dashboard_summary()
     return get_document_detail(document_public_id, db=db)
+
+
+@dashboard_router.get("/summary", response_model=DashboardSummary)
+def get_dashboard_summary(_: dict = Depends(require_admin), db: Session = Depends(get_db)) -> DashboardSummary:
+    """Cached administrative KPIs; falls back to Neon when Redis is unavailable."""
+    return dashboard_summary(db)
 
 
 @documents_router.get("/{document_public_id}/content", responses={404: {"description": "Document not found"}})

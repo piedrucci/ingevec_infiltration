@@ -7,11 +7,15 @@ services:
       target: runtime
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000
     env_file: .env.${APP_ENV:?Set APP_ENV through the selected environment file}
+    environment:
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
     depends_on:
       nats:
         condition: service_healthy
       seaweedfs:
         condition: service_started
+      redis:
+        condition: service_healthy
     restart: unless-stopped
 
   pdf-worker:
@@ -20,8 +24,12 @@ services:
       target: runtime
     command: python -m app.worker.main
     env_file: .env.${APP_ENV:?Set APP_ENV through the selected environment file}
+    environment:
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
     depends_on:
       nats:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     restart: unless-stopped
 
@@ -37,6 +45,18 @@ services:
       interval: 10s
       timeout: 3s
       retries: 10
+
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
 
   seaweedfs:
     image: chrislusf/seaweedfs:3.81
@@ -141,6 +161,7 @@ services:
 
 volumes:
   nats_data:
+  redis_data:
   seaweedfs_data:
   keycloak_data:
   superset_db_data:

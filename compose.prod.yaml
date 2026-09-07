@@ -29,6 +29,11 @@ services:
       resources:
         limits:
           memory: 256M
+  redis:
+    deploy:
+      resources:
+        limits:
+          memory: 128M
   seaweedfs:
     deploy:
       resources:
