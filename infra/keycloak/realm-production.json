@@ -1,0 +1,86 @@
+{
+  "realm": "ingevec-production",
+  "enabled": true,
+  "displayName": "Ingevec Postventa",
+  "roles": {
+    "realm": [
+      { "name": "admin", "description": "Administra Ingevec postventa" },
+      { "name": "viewer", "description": "Consulta Ingevec postventa" },
+      { "name": "superset_admin", "description": "Administra Ingevec analytics" },
+      { "name": "superset_viewer", "description": "Consulta Ingevec analytics asignado" }
+    ]
+  },
+  "groups": [
+    {
+      "name": "superset",
+      "path": "/superset",
+      "subGroups": [
+        { "name": "division", "path": "/superset/division", "subGroups": [] },
+        { "name": "project", "path": "/superset/project", "subGroups": [] }
+      ]
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "ingevec-api",
+      "name": "Ingevec API",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "bearerOnly": true,
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false
+    },
+    {
+      "clientId": "ingevec-web",
+      "name": "Ingevec Admin Web",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": ["https://app.capix.cloud/*"],
+      "webOrigins": ["https://app.capix.cloud"],
+      "protocolMappers": [
+        {
+          "name": "ingevec-api audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "ingevec-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "ingevec-superset",
+      "name": "Ingevec Superset",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": ["https://bi.capix.cloud/oauth-authorized/keycloak"],
+      "webOrigins": ["https://bi.capix.cloud"],
+      "protocolMappers": [
+        {
+          "name": "superset groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "consentRequired": false,
+          "config": {
+            "full.path": "true",
+            "claim.name": "groups",
+            "jsonType.label": "String",
+            "access.token.claim": "true",
+            "id.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ]
+}

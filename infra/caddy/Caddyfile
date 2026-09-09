@@ -4,15 +4,31 @@
     auto_https off
 }
 
+(origin_tls) {
+    tls /etc/caddy/certs/capix.cloud.crt /etc/caddy/certs/capix.cloud.key
+}
+
+https://app.capix.cloud {
+    import origin_tls
+    handle /v1/* {
+        reverse_proxy api:8000
+    }
+    handle {
+        reverse_proxy web:80
+    }
+}
+
 https://api.capix.cloud {
+    import origin_tls
     reverse_proxy api:8000
 }
 
 https://auth.capix.cloud {
+    import origin_tls
     reverse_proxy keycloak:8080
 }
 
 https://bi.capix.cloud {
+    import origin_tls
     reverse_proxy superset:8088
 }
-

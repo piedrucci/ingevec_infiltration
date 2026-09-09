@@ -1,0 +1,14 @@
+{
+  "identities": [
+    {
+      "name": "ingevec-api",
+      "credentials": [
+        {
+          "accessKey": "replace-with-production-access-key",
+          "secretKey": "replace-with-production-secret-key"
+        }
+      ],
+      "actions": ["Read", "List", "Tagging", "Write"]
+    }
+  ]
+}

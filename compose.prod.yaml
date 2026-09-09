@@ -1,4 +1,17 @@
 services:
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile.production
+      args:
+        VITE_KEYCLOAK_URL: ${VITE_KEYCLOAK_URL}
+        VITE_KEYCLOAK_REALM: ${VITE_KEYCLOAK_REALM}
+        VITE_KEYCLOAK_CLIENT_ID: ${VITE_KEYCLOAK_CLIENT_ID}
+    depends_on:
+      - api
+      - keycloak
+    restart: unless-stopped
+
   caddy:
     image: caddy:2.8-alpine
     ports:
@@ -8,6 +21,7 @@ services:
       - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - ./infra/caddy/certs:/etc/caddy/certs:ro
     depends_on:
+      - web
       - api
       - keycloak
       - superset
@@ -40,6 +54,9 @@ services:
         limits:
           memory: 512M
   keycloak:
+    command: start --import-realm
+    volumes:
+      - ./infra/keycloak/realm-production.json:/opt/keycloak/data/import/realm-production.json:ro
     deploy:
       resources:
         limits:
