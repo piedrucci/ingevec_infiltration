@@ -64,6 +64,18 @@ en ejecución no recibe la credencial propietaria de Neon. La integración OIDC 
 Keycloak se configurará con un cliente dedicado y la URL de redirección de
 Superset; no reutilizar el cliente de la UI administrativa.
 
+### Acceso Superset con Keycloak
+
+Crear el cliente confidencial `ingevec-superset` en el realm y guardar su secreto
+en `SUPERSET_OIDC_CLIENT_SECRET`. El redirect URI es
+`http://localhost:8088/oauth-authorized/keycloak` en desarrollo y
+`https://bi.capix.cloud/oauth-authorized/keycloak` en producción. Los usuarios
+reciben `superset_admin` (administración total) o `superset_viewer` (sólo
+dashboards/gráficos). Para viewers, asignar además grupos con ruta completa:
+`/superset/division/<id_division>` o `/superset/project/<numero_obra>`.
+Los grupos se sincronizan en cada login; sin un grupo de alcance el viewer no ve
+filas. SQL Lab y edición quedan reservados para `superset_admin`.
+
 ### Comandos para iniciar y comprobar la API
 
 Desde la raíz del repositorio, iniciar todos los servicios de desarrollo en primer plano:

@@ -12,6 +12,7 @@ READER_ROLE = "superset_reader"
 DATABASE_NAME = "Ingevec Postventa Analytics"
 ANALYTICS_SCHEMA = "analytics"
 ANALYTICS_VIEW = "postventa_item_dashboard"
+VIEWER_ROLE = "Ingevec Viewer"
 
 
 def reader_uri(owner_uri: str) -> str:
@@ -67,6 +68,16 @@ def register_superset_database(uri: str) -> None:
             db.session.add(dataset)
             db.session.commit()
         dataset.fetch_metadata()
+        db.session.commit()
+
+        # Viewer access is deliberately limited to this dataset. Gamma provides
+        # dashboard/chart viewing; it does not grant SQL Lab or authoring rights.
+        security_manager = app.appbuilder.sm
+        viewer = security_manager.find_role(VIEWER_ROLE) or security_manager.add_role(VIEWER_ROLE)
+        permission = security_manager.find_permission_view_menu("datasource_access", dataset.get_perm())
+        if permission is None:
+            permission = security_manager.add_permission_view_menu("datasource_access", dataset.get_perm())
+        security_manager.add_permission_role(viewer, permission)
         db.session.commit()
 
 
