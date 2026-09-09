@@ -11,7 +11,8 @@ from pypdf import PdfReader
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Document, DocumentPostventaItem, FailureCause, FailureCauseAlias, PostventaItem, Project
+from app.models import Document, DocumentPostventaItem, FailureCause, FailureCauseAlias
+from app.services.document_candidates import find_document_candidates
 from app.services.storage import copy_private_object, delete_private_object, get_private_object
 from app.services.dashboard_cache import invalidate_dashboard_summary
 
@@ -170,15 +171,13 @@ def process_document(db: Session, document_id: int) -> ProcessingResult:
 
         project_number = details["project_number"]
         location = details["infiltration_location"]
-        candidates = []
-        if project_number and location:
-            candidates = db.scalars(
-                select(PostventaItem)
-                .join(Project, Project.id == PostventaItem.project_id)
-                .outerjoin(DocumentPostventaItem, DocumentPostventaItem.postventa_item_id == PostventaItem.id)
-                .where(Project.id.like(f"{project_number}%"))
-                .where(DocumentPostventaItem.document_id.is_(None))
-            ).all()
+        candidate_set = find_document_candidates(
+            db,
+            project_number=project_number,
+            project_name=details.get("project_name"),
+            location=location,
+        )
+        candidates = candidate_set.items
 
         selected = [
             (item, _location_score(location, item.notes))

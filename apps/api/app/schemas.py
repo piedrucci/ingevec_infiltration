@@ -122,6 +122,9 @@ class DocumentCandidate(BaseModel):
 
 class DocumentCandidateResponse(BaseModel):
     items: list[DocumentCandidate]
+    project_match_method: str | None = None
+    project_match_score: float = 0
+    project_match_message: str | None = None
 
 
 class FailureCauseOption(BaseModel):

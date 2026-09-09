@@ -1,5 +1,5 @@
 import { accessToken } from "./auth";
-import type { DashboardSummary, Document, DocumentCandidate, DocumentDetail, DocumentSummary, FailureCauseCategoryOption, FailureCauseOption, PageResponse, PostventaItem, Project } from "./types";
+import type { DashboardSummary, Document, DocumentCandidateResponse, DocumentDetail, DocumentSummary, FailureCauseCategoryOption, FailureCauseOption, PageResponse, PostventaItem, Project } from "./types";
 
 type ApiErrorDetail = string | { code?: string; document_public_id?: string; original_filename?: string };
 
@@ -79,8 +79,8 @@ export function getDocument(documentPublicId: string): Promise<DocumentDetail> {
   return request<DocumentDetail>(`/v1/documents/${documentPublicId}`);
 }
 
-export function getDocumentCandidates(documentPublicId: string): Promise<{ items: DocumentCandidate[] }> {
-  return request<{ items: DocumentCandidate[] }>(`/v1/documents/${documentPublicId}/candidates`);
+export function getDocumentCandidates(documentPublicId: string): Promise<DocumentCandidateResponse> {
+  return request<DocumentCandidateResponse>(`/v1/documents/${documentPublicId}/candidates`);
 }
 
 export function getFailureCauses(): Promise<FailureCauseOption[]> {

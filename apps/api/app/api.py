@@ -51,6 +51,7 @@ from app.schemas import (
 )
 from app.services.dashboard import dashboard_summary
 from app.services.dashboard_cache import invalidate_dashboard_summary
+from app.services.document_candidates import find_document_candidates
 from app.services.document_processor import _location_score, _move_document
 from app.services.document_upload import DuplicateDocumentError, register_pdf_upload
 from app.services.failure_causes import create_failure_cause
@@ -236,28 +237,29 @@ def list_document_candidates(document_public_id: UUID, _: dict = Depends(require
     if document is None:
         raise HTTPException(status_code=404, detail="Document not found")
     details = document.extracted_data or {}
-    project_number = details.get("project_number")
-    if not project_number:
-        return DocumentCandidateResponse(items=[])
-    rows = db.execute(
-        select(PostventaItem, Project)
-        .join(Project, Project.id == PostventaItem.project_id)
-        .outerjoin(DocumentPostventaItem, DocumentPostventaItem.postventa_item_id == PostventaItem.id)
-        .where(Project.id.like(f"{project_number}%"), DocumentPostventaItem.document_id.is_(None))
-        .order_by(PostventaItem.id)
-    ).all()
     location = details.get("infiltration_location") or ""
+    candidate_set = find_document_candidates(
+        db,
+        project_number=details.get("project_number"),
+        project_name=details.get("project_name"),
+        location=location,
+    )
     candidates = [
         DocumentCandidate(
             postventa_item_public_id=item.public_id,
             postventa_item_id=item.id,
-            project_id=project.id,
-            project_name=project.name,
+            project_id=item.project_id,
+            project_name=candidate_set.project_names[item.project_id],
             notes=item.notes,
             score=_location_score(location, item.notes),
-        ) for item, project in rows
+        ) for item in candidate_set.items
     ]
-    return DocumentCandidateResponse(items=sorted(candidates, key=lambda candidate: candidate.score, reverse=True))
+    return DocumentCandidateResponse(
+        items=sorted(candidates, key=lambda candidate: candidate.score, reverse=True),
+        project_match_method=candidate_set.project_match_method,
+        project_match_score=candidate_set.project_match_score,
+        project_match_message=candidate_set.project_match_message,
+    )
 
 
 @documents_router.post("/{document_public_id}/associations", response_model=DocumentDetail)

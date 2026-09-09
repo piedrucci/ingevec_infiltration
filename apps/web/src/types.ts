@@ -92,6 +92,13 @@ export type DocumentCandidate = {
   score: number;
 };
 
+export type DocumentCandidateResponse = {
+  items: DocumentCandidate[];
+  project_match_method: "id" | "name" | null;
+  project_match_score: number;
+  project_match_message: string | null;
+};
+
 export type FailureCauseOption = {
   code: string;
   display_name_es: string;
