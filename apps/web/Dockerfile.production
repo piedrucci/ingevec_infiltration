@@ -2,7 +2,14 @@ FROM node:22-alpine AS build
 
 WORKDIR /app
 COPY apps/web/package*.json ./
-RUN npm ci
+RUN npm ci --include=optional \
+    && rollup_version="$(node -p "require('./node_modules/rollup/package.json').version")" \
+    && case "$(node -p "process.arch")" in \
+         x64) rollup_native="@rollup/rollup-linux-x64-musl" ;; \
+         arm64) rollup_native="@rollup/rollup-linux-arm64-musl" ;; \
+         *) echo "Unsupported build architecture: $(node -p "process.arch")" >&2; exit 1 ;; \
+       esac \
+    && npm install --no-save --package-lock=false --include=optional "$rollup_native@$rollup_version"
 COPY apps/web/ ./
 
 ARG VITE_KEYCLOAK_URL
