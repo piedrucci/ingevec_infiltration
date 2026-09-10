@@ -1,6 +1,21 @@
 name: capix-ingevec
 
 services:
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile.production
+      args:
+        VITE_KEYCLOAK_URL: ${VITE_KEYCLOAK_URL:-}
+        VITE_KEYCLOAK_REALM: ${VITE_KEYCLOAK_REALM:-}
+        VITE_KEYCLOAK_CLIENT_ID: ${VITE_KEYCLOAK_CLIENT_ID:-ingevec-web}
+    expose:
+      - "80"
+    depends_on:
+      - api
+      - keycloak
+    restart: unless-stopped
+
   api:
     build:
       context: .

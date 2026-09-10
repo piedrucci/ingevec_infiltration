@@ -1,19 +1,4 @@
 services:
-  web:
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile.production
-      args:
-        VITE_KEYCLOAK_URL: ${VITE_KEYCLOAK_URL}
-        VITE_KEYCLOAK_REALM: ${VITE_KEYCLOAK_REALM}
-        VITE_KEYCLOAK_CLIENT_ID: ${VITE_KEYCLOAK_CLIENT_ID}
-    depends_on:
-      - api
-      - keycloak
-    expose:
-      - "80"
-    restart: unless-stopped
-
   api:
     expose:
       - "8000"
