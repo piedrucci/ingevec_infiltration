@@ -29,7 +29,9 @@ sobre las vistas publicadas.
    `.env.production` directamente en Dokploy. Como Dokploy escribe ese entorno
    en `.env`, usa `ENV_FILE=.env` y
    `SEAWEEDFS_CONFIG_FILE=../files/seaweedfs/s3.json`. Nunca confirmes secretos
-   en Git.
+   en Git. Define también `VITE_KEYCLOAK_URL=https://auth.capix.cloud`,
+   `VITE_KEYCLOAK_REALM=ingevec-production` y
+   `VITE_KEYCLOAK_CLIENT_ID=ingevec-web`; Vite los incorpora durante el build.
 3. En **Advanced → Mounts** crea un File Mount en
    `files/seaweedfs/s3.json`, usando como contenido la plantilla
    `infra/seaweedfs/s3.production.json.example` con credenciales nuevas, y crea
