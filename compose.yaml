@@ -105,6 +105,7 @@ services:
       KC_HTTP_ENABLED: "true"
       KC_HOSTNAME: ${KEYCLOAK_HOSTNAME}
       KC_HEALTH_ENABLED: "true"
+      KC_HOSTNAME_STRICT: "true"
     depends_on:
       keycloak-db:
         condition: service_started
