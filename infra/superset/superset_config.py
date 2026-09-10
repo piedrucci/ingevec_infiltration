@@ -11,6 +11,15 @@ SECRET_KEY = os.environ["SUPERSET_SECRET_KEY"]
 SQLALCHEMY_DATABASE_URI = os.environ["SUPERSET_DATABASE_URI"]
 WTF_CSRF_ENABLED = True
 ENABLE_PROXY_FIX = True
+PROXY_FIX_CONFIG = {
+    "x_for": 1,
+    "x_proto": 1,
+    "x_host": 1,
+    "x_port": 1,
+    "x_prefix": 1,
+}
+
+PREFERRED_URL_SCHEME = "https"
 FEATURE_FLAGS = {"ENABLE_TEMPLATE_PROCESSING": False}
 
 # Superset starts with a local bootstrap administrator. Keycloak OIDC is added
