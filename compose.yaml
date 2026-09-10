@@ -6,7 +6,7 @@ services:
       context: .
       target: runtime
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000
-    env_file: .env.${APP_ENV:?Set APP_ENV through the selected environment file}
+    env_file: ${ENV_FILE:-.env.${APP_ENV:?Set APP_ENV through the selected environment file}}
     environment:
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
     depends_on:
@@ -23,7 +23,7 @@ services:
       context: .
       target: runtime
     command: python -m app.worker.main
-    env_file: .env.${APP_ENV:?Set APP_ENV through the selected environment file}
+    env_file: ${ENV_FILE:-.env.${APP_ENV:?Set APP_ENV through the selected environment file}}
     environment:
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
     depends_on:
@@ -63,7 +63,7 @@ services:
     command: server -s3 -dir=/data -ip=seaweedfs -s3.config=/etc/seaweedfs/s3.json -s3.allowedOrigins=http://localhost:5173,https://app.capix.cloud
     volumes:
       - seaweedfs_data:/data
-      - ./infra/seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
+      - ${SEAWEEDFS_CONFIG_FILE:-./infra/seaweedfs/s3.json}:/etc/seaweedfs/s3.json:ro
     restart: unless-stopped
 
   keycloak-db:
@@ -138,7 +138,7 @@ services:
       context: .
       dockerfile: infra/superset/Dockerfile
     profiles: ["provision"]
-    env_file: .env.${APP_ENV:?Set APP_ENV through the selected environment file}
+    env_file: ${ENV_FILE:-.env.${APP_ENV:?Set APP_ENV through the selected environment file}}
     environment:
       SUPERSET_CONFIG_PATH: /app/pythonpath/ingevec/superset_config.py
       SUPERSET_DATABASE_URI: postgresql+psycopg2://superset:${SUPERSET_DB_PASSWORD}@superset-db:5432/superset

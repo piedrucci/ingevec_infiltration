@@ -10,23 +10,13 @@ services:
     depends_on:
       - api
       - keycloak
+    expose:
+      - "80"
     restart: unless-stopped
 
-  caddy:
-    image: caddy:2.8-alpine
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - ./infra/caddy/certs:/etc/caddy/certs:ro
-    depends_on:
-      - web
-      - api
-      - keycloak
-      - superset
-    restart: unless-stopped
   api:
+    expose:
+      - "8000"
     deploy:
       resources:
         limits:
@@ -57,11 +47,15 @@ services:
     command: start --import-realm
     volumes:
       - ./infra/keycloak/realm-production.json:/opt/keycloak/data/import/realm-production.json:ro
+    expose:
+      - "8080"
     deploy:
       resources:
         limits:
           memory: 1G
   superset:
+    expose:
+      - "8088"
     deploy:
       resources:
         limits:
