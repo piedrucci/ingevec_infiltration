@@ -416,6 +416,7 @@ def list_projects(
 @postventa_items_router.get("", response_model=PostventaItemListResponse)
 def list_postventa_items(
     project_id: str | None = Query(default=None, max_length=100),
+    project_manager_id: int | None = Query(default=None, ge=1),
     search: str | None = Query(default=None, min_length=1, max_length=100),
     document_status: str | None = Query(default=None, max_length=32),
     unassociated: bool = Query(default=False),
@@ -427,6 +428,8 @@ def list_postventa_items(
     filters = []
     if project_id:
         filters.append(PostventaItem.project_id == project_id)
+    if project_manager_id is not None:
+        filters.append(ProjectManager.id == project_manager_id)
     if search:
         term = f"%{search.strip()}%"
         filters.append(or_(PostventaItem.notes.ilike(term), Project.name.ilike(term), Project.id.ilike(term)))
@@ -438,6 +441,8 @@ def list_postventa_items(
     base = (
         select(PostventaItem)
         .join(Project, Project.id == PostventaItem.project_id)
+        .outerjoin(ProjectAdmin, ProjectAdmin.id == Project.project_admin_id)
+        .outerjoin(ProjectManager, ProjectManager.id == ProjectAdmin.project_manager_id)
         .outerjoin(DocumentPostventaItem, DocumentPostventaItem.postventa_item_id == PostventaItem.id)
         .outerjoin(Document, Document.id == DocumentPostventaItem.document_id)
         .where(*filters)
@@ -455,6 +460,8 @@ def list_postventa_items(
             Document,
         )
         .join(Project, Project.id == PostventaItem.project_id)
+        .outerjoin(ProjectAdmin, ProjectAdmin.id == Project.project_admin_id)
+        .outerjoin(ProjectManager, ProjectManager.id == ProjectAdmin.project_manager_id)
         .join(Classification, Classification.id == PostventaItem.classification_id)
         .join(ItemType, ItemType.id == PostventaItem.item_type_id)
         .outerjoin(Subcontractor, Subcontractor.id == PostventaItem.subcontractor_id)

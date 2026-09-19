@@ -15,6 +15,7 @@ class DashboardBreakdown(BaseModel):
 
 
 class DashboardAssociationBreakdown(BaseModel):
+    project_manager_id: int | None
     name: str
     items: int
     associated_items: int

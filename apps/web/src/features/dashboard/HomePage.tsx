@@ -1,4 +1,5 @@
 import type { DashboardAssociationBreakdown, DashboardBreakdown } from "../../types";
+import { Link } from "react-router-dom";
 import { useDashboardSummary } from "../../queries/dashboard";
 import { ErrorMessage, LoadingIndicator } from "../documents/components";
 
@@ -22,7 +23,7 @@ function BreakdownCard({ title, rows, total }: { title: string; rows: DashboardB
 
 function ProjectManagerProgressCard({ rows }: { rows: DashboardAssociationBreakdown[] }) {
   return <section className="card project-manager-progress"><div className="section-title"><div><h2>Avance por gerente de proyecto</h2><p className="muted">Asociación de ítems con documentos</p></div><span>{rows.length} gerentes</span></div>
-    {rows.length ? <div className="table-wrap"><table><thead><tr><th>Gerente de proyecto</th><th>Ítems</th><th>Asociados</th><th>Pendientes</th><th>Avance</th></tr></thead><tbody>{rows.map((row) => <tr key={row.name}><td>{row.name}</td><td>{row.items.toLocaleString("es-CL")}</td><td>{row.associated_items.toLocaleString("es-CL")}</td><td>{row.pending_items.toLocaleString("es-CL")}</td><td className="progress-cell"><div><strong>{(row.association_rate * 100).toFixed(1)}%</strong><div className="progress-track"><span style={{ width: `${row.association_rate * 100}%` }} /></div></div></td></tr>)}</tbody></table></div> : <p className="empty-state">Sin datos disponibles.</p>}
+    {rows.length ? <div className="table-wrap"><table><thead><tr><th>Gerente de proyecto</th><th>Ítems</th><th>Asociados</th><th>Pendientes</th><th>Avance</th></tr></thead><tbody>{rows.map((row) => <tr key={row.project_manager_id ?? "unassigned"}><td>{row.project_manager_id !== null ? <Link className="manager-link" to={`/project-managers/${row.project_manager_id}/items`}>{row.name}</Link> : row.name}</td><td>{row.items.toLocaleString("es-CL")}</td><td>{row.associated_items.toLocaleString("es-CL")}</td><td>{row.pending_items.toLocaleString("es-CL")}</td><td className="progress-cell"><div><strong>{(row.association_rate * 100).toFixed(1)}%</strong><div className="progress-track"><span style={{ width: `${row.association_rate * 100}%` }} /></div></div></td></tr>)}</tbody></table></div> : <p className="empty-state">Sin datos disponibles.</p>}
   </section>;
 }
 

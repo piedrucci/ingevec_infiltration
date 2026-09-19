@@ -39,6 +39,7 @@ export type PageResponse<T> = { items: T[]; page: Page };
 
 export type DashboardBreakdown = { name: string; count: number };
 export type DashboardAssociationBreakdown = {
+  project_manager_id: number | null;
   name: string;
   items: number;
   associated_items: number;

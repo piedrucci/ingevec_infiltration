@@ -6,6 +6,7 @@ import { ReviewPage } from "./features/documents/ReviewPage";
 import { UploadPage } from "./features/documents/UploadPage";
 import { HomePage } from "./features/dashboard/HomePage";
 import { ProjectsPage } from "./features/projects/ProjectsPage";
+import { ProjectManagerItemsPage } from "./features/projects/ProjectManagerItemsPage";
 
 export function App() {
   if (!isAdmin()) {
@@ -19,7 +20,7 @@ export function App() {
         <button className="secondary" onClick={() => void logout()}>Cerrar sesión</button>
       </header>
       <nav className="app-nav"><NavLink to="/">Inicio</NavLink><NavLink to="/projects">Proyectos</NavLink><NavLink to="/documents/upload">Cargar PDFs</NavLink><NavLink to="/documents">Documentos</NavLink></nav>
-      <Routes><Route path="/" element={<HomePage />} /><Route path="/projects" element={<ProjectsPage />} /><Route path="/documents/upload" element={<UploadPage />} /><Route path="/documents" element={<DocumentsPage />} /><Route path="/documents/:publicId/review" element={<ReviewPage />} /><Route path="*" element={<Navigate to="/" replace />} /></Routes>
+      <Routes><Route path="/" element={<HomePage />} /><Route path="/projects" element={<ProjectsPage />} /><Route path="/project-managers/:projectManagerId/items" element={<ProjectManagerItemsPage />} /><Route path="/documents/upload" element={<UploadPage />} /><Route path="/documents" element={<DocumentsPage />} /><Route path="/documents/:publicId/review" element={<ReviewPage />} /><Route path="*" element={<Navigate to="/" replace />} /></Routes>
     </main>
   );
 }

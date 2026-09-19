@@ -13,6 +13,7 @@ _SUMMARY_SQL = text("""
 WITH base AS (
   SELECT
     pi.id,
+    pm.id AS project_manager_id,
     COALESCE(NULLIF(BTRIM(dm.name), ''), 'Sin asignar') AS division_manager,
     COALESCE(NULLIF(BTRIM(pm.name), ''), 'Sin asignar') AS project_manager,
     COALESCE(NULLIF(BTRIM(c.name), ''), 'Sin asignar') AS classification,
@@ -49,6 +50,7 @@ SELECT jsonb_build_object(
   ),
   'project_manager_association_progress', COALESCE((
     SELECT jsonb_agg(jsonb_build_object(
+      'project_manager_id', project_manager_id,
       'name', name,
       'items', items,
       'associated_items', associated_items,
@@ -56,9 +58,9 @@ SELECT jsonb_build_object(
       'association_rate', CASE WHEN items > 0 THEN associated_items::numeric / items ELSE 0 END
     ) ORDER BY (items - associated_items) DESC, name)
     FROM (
-      SELECT project_manager AS name, COUNT(*)::int AS items,
+      SELECT project_manager_id, project_manager AS name, COUNT(*)::int AS items,
         COUNT(*) FILTER (WHERE is_associated)::int AS associated_items
-      FROM base GROUP BY project_manager
+      FROM base GROUP BY project_manager_id, project_manager
     ) grouped
   ), '[]'::jsonb)
 ) AS summary

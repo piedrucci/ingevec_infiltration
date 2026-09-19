@@ -44,6 +44,20 @@ export function getPostventaItems(projectId: string): Promise<PageResponse<Postv
   return request<PageResponse<PostventaItem>>(`/v1/postventa-items?${query}`);
 }
 
+export function getPostventaItemsByProjectManager(
+  projectManagerId: number,
+  options: { search?: string; documentStatus?: string; limit?: number; offset?: number } = {},
+): Promise<PageResponse<PostventaItem>> {
+  const query = new URLSearchParams({
+    project_manager_id: String(projectManagerId),
+    limit: String(options.limit ?? 50),
+    offset: String(options.offset ?? 0),
+  });
+  if (options.search?.trim()) query.set("search", options.search.trim());
+  if (options.documentStatus) query.set("document_status", options.documentStatus);
+  return request<PageResponse<PostventaItem>>(`/v1/postventa-items?${query}`);
+}
+
 export function getUnassociatedItems(search = ""): Promise<PageResponse<PostventaItem>> {
   const query = new URLSearchParams({ unassociated: "true", limit: "50", offset: "0" });
   if (search.trim()) query.set("search", search.trim());
