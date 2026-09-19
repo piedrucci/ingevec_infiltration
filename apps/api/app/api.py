@@ -1,3 +1,4 @@
+import logging
 from zipfile import BadZipFile
 from urllib.parse import quote
 from uuid import UUID
@@ -52,7 +53,9 @@ from app.schemas import (
 from app.services.dashboard import dashboard_summary
 from app.services.dashboard_cache import invalidate_dashboard_summary
 from app.services.document_candidates import find_document_candidates
+from app.services.document_events import document_jetstream
 from app.services.document_processor import _location_score, _move_document
+from app.services.document_scanner import publish_pending_document_events
 from app.services.document_upload import DuplicateDocumentError, register_pdf_upload
 from app.services.failure_causes import create_failure_cause
 from app.services.excel_importer import import_workbook
@@ -63,6 +66,7 @@ projects_router = APIRouter(prefix="/projects", tags=["projects"])
 postventa_items_router = APIRouter(prefix="/postventa-items", tags=["postventa-items"])
 documents_router = APIRouter(prefix="/documents", tags=["documents"])
 dashboard_router = APIRouter(prefix="/dashboard", tags=["dashboard"])
+logger = logging.getLogger(__name__)
 
 
 def _document_list_item(document: Document, association_count: int) -> DocumentListItem:
@@ -117,6 +121,16 @@ async def upload_document(file: UploadFile = File(...), _: dict = Depends(requir
                 "status": exc.document.status,
             },
         ) from exc
+    try:
+        async with document_jetstream() as js:
+            await publish_pending_document_events(db, js)
+    except Exception:
+        # The committed outbox row is the recovery boundary. An unavailable
+        # NATS server must not turn an otherwise valid upload into an error.
+        logger.exception(
+            "PDF stored but immediate event publication failed; reconciliation will retry document_id=%s",
+            uploaded.document.id,
+        )
     document = uploaded.document
     invalidate_dashboard_summary()
     return DocumentSummary(

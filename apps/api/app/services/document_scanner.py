@@ -130,12 +130,17 @@ async def publish_pending_document_events(db: Session, js, limit: int = 100) -> 
         .where(DocumentOutboxEvent.published_at.is_(None))
         .order_by(DocumentOutboxEvent.created_at, DocumentOutboxEvent.id)
         .limit(limit)
+        .with_for_update(skip_locked=True)
     ).all()
     published = 0
 
     for event in events:
         try:
-            await js.publish(event.subject, json.dumps(event.payload).encode("utf-8"))
+            await js.publish(
+                event.subject,
+                json.dumps(event.payload).encode("utf-8"),
+                headers={"Nats-Msg-Id": f"document-outbox-{event.id}"},
+            )
             event.published_at = datetime.now(timezone.utc)
             event.publish_attempts += 1
             event.last_error = None

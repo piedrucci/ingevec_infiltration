@@ -51,3 +51,24 @@ Usa redeploy desde Dokploy después de cada versión publicada. Antes de actuali
 confirma que los volúmenes persistentes están incluidos en los snapshots de
 Hostinger. Neon mantiene la recuperación de las bases de aplicación y Superset;
 prueba la restauración de SeaweedFS y Keycloak primero en un entorno separado.
+
+El worker PDF consume JetStream de forma bloqueante y no consulta Neon cuando no
+hay trabajo. La API intenta publicar cada evento inmediatamente después de
+confirmar la transacción; si NATS no está disponible, el registro persistente de
+outbox queda pendiente para recuperación.
+
+Programa en Dokploy una tarea cada seis horas para el servicio `api`, con el
+comando `python -m app.worker.reconcile`. La tarea publica los registros de
+outbox pendientes y termina, evitando mantener activo el compute de Neon
+mediante polling continuo. El equivalente desde Docker Compose es:
+
+```bash
+docker compose -f compose.yaml -f compose.prod.yaml exec -T api python -m app.worker.reconcile
+```
+
+La carga normal de PDFs debe pasar siempre por la API. Si se copiaron objetos
+directamente a `incoming/`, ejecuta excepcionalmente:
+
+```bash
+docker compose -f compose.yaml -f compose.prod.yaml exec -T api python -m app.worker.reconcile --scan-storage
+```
