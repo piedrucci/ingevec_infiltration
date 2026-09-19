@@ -120,12 +120,12 @@ export function createFailureCause(input: { code: string; displayNameEs: string;
   });
 }
 
-export function associateDocument(documentPublicId: string, postventaItemPublicIds: string[], failureCauseCode: string): Promise<DocumentDetail> {
+export function associateDocument(documentPublicId: string, postventaItemPublicIds: string[], failureCauseCodes: string[]): Promise<DocumentDetail> {
   return accessToken().then(async (token) => {
     const response = await fetch(`/v1/documents/${documentPublicId}/associations`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ postventa_item_public_ids: postventaItemPublicIds, failure_cause_code: failureCauseCode }),
+      body: JSON.stringify({ postventa_item_public_ids: postventaItemPublicIds, failure_cause_codes: failureCauseCodes }),
     });
     if (!response.ok) throw new Error(`No fue posible guardar la asociación (${response.status}).`);
     return response.json() as Promise<DocumentDetail>;

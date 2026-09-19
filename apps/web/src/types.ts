@@ -31,7 +31,7 @@ export type PostventaItem = {
   request_date: string | null;
   subcontractor: string | null;
   handled_by: string | null;
-  failure_cause: { display_name_es: string; category_name_es: string } | null;
+  failure_causes: { code: string; display_name_es: string; category_name_es: string }[];
   document: DocumentSummary | null;
 };
 

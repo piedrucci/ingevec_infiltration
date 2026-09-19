@@ -148,7 +148,7 @@ class CreateFailureCauseRequest(BaseModel):
 
 class ManualDocumentAssociationRequest(BaseModel):
     postventa_item_public_ids: list[UUID]
-    failure_cause_code: str
+    failure_cause_codes: list[str] = Field(min_length=1, max_length=20)
 
 
 class PostventaItemListItem(BaseModel):
@@ -162,7 +162,7 @@ class PostventaItemListItem(BaseModel):
     request_date: date | None
     subcontractor: str | None
     handled_by: str | None
-    failure_cause: FailureCauseSummary | None
+    failure_causes: list[FailureCauseSummary]
     document: DocumentSummary | None
 
 

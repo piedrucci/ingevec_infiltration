@@ -70,6 +70,21 @@ class PostventaItem(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True); public_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), unique=True, default=uuid.uuid4, server_default=func.gen_random_uuid(), nullable=False); source_row_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('app.excel_source_row.id', ondelete='CASCADE'), unique=True); project_id: Mapped[str] = mapped_column(ForeignKey('app.project.id', onupdate='CASCADE'), nullable=False); classification_id: Mapped[int] = mapped_column(ForeignKey('app.classification.id'), nullable=False); item_type_id: Mapped[int] = mapped_column(ForeignKey('app.item_type.id'), nullable=False); failure_cause_id: Mapped[int | None] = mapped_column(ForeignKey('app.failure_cause.id', ondelete='RESTRICT')); notes: Mapped[str] = mapped_column(Text, nullable=False); request_date: Mapped[date | None] = mapped_column(Date); subcontractor_id: Mapped[int | None] = mapped_column(ForeignKey('app.subcontractor.id')); handled_by: Mapped[str | None] = mapped_column(String(255))
 
 
+class PostventaItemFailureCause(Base):
+    __tablename__ = 'postventa_item_failure_cause'
+    __table_args__ = (
+        CheckConstraint("assignment_source IN ('AUTOMATIC', 'MANUAL', 'MIGRATED')", name='ck_postventa_item_failure_cause_source'),
+        {'schema': 'app'},
+    )
+
+    postventa_item_id: Mapped[int] = mapped_column(ForeignKey('app.postventa_item.id', ondelete='CASCADE'), primary_key=True)
+    failure_cause_id: Mapped[int] = mapped_column(ForeignKey('app.failure_cause.id', ondelete='RESTRICT'), primary_key=True)
+    source_document_id: Mapped[int | None] = mapped_column(ForeignKey('app.document.id', ondelete='SET NULL'))
+    assignment_source: Mapped[str] = mapped_column(String(16), nullable=False)
+    assigned_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    assigned_by: Mapped[str | None] = mapped_column(String(255))
+
+
 class Document(Base):
     __tablename__ = 'document'
     __table_args__ = (

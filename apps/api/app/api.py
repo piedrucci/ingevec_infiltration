@@ -22,6 +22,7 @@ from app.models import (
     ItemType,
     Location,
     PostventaItem,
+    PostventaItemFailureCause,
     Project,
     ProjectAdmin,
     ProjectManager,
@@ -291,9 +292,11 @@ def create_manual_associations(
         raise HTTPException(status_code=404, detail="Document not found")
     if document.status not in {"PENDING_REVIEW", "UNMATCHED"}:
         raise HTTPException(status_code=409, detail="Document is not awaiting manual review")
-    cause = db.scalar(select(FailureCause).where(FailureCause.code == payload.failure_cause_code, FailureCause.is_active.is_(True)))
-    if cause is None:
-        raise HTTPException(status_code=422, detail="Failure cause is not active or does not exist")
+    cause_codes = list(dict.fromkeys(payload.failure_cause_codes))
+    causes = db.scalars(select(FailureCause).where(FailureCause.code.in_(cause_codes), FailureCause.is_active.is_(True))).all()
+    causes_by_code = {cause.code: cause for cause in causes}
+    if len(causes_by_code) != len(cause_codes):
+        raise HTTPException(status_code=422, detail="One or more failure causes are inactive or do not exist")
     items = db.scalars(select(PostventaItem).where(PostventaItem.public_id.in_(selected_ids)).with_for_update()).all()
     if len(items) != len(selected_ids):
         raise HTTPException(status_code=422, detail="One or more selected postventa items do not exist")
@@ -311,7 +314,14 @@ def create_manual_associations(
                     confidence=None,
                     rationale="Asociación confirmada manualmente por administración",
                 ))
-            item.failure_cause_id = cause.id
+            for cause in causes:
+                db.merge(PostventaItemFailureCause(
+                    postventa_item_id=item.id,
+                    failure_cause_id=cause.id,
+                    source_document_id=document.id,
+                    assignment_source="MANUAL",
+                ))
+            item.failure_cause_id = causes[0].id
         document.status = "MATCHED"
         _move_document(document, "processed")
         db.commit()
@@ -455,8 +465,6 @@ def list_postventa_items(
             Classification.name.label("classification"),
             ItemType.name.label("item_type"),
             Subcontractor.name.label("subcontractor"),
-            FailureCause,
-            FailureCauseCategory,
             Document,
         )
         .join(Project, Project.id == PostventaItem.project_id)
@@ -465,8 +473,6 @@ def list_postventa_items(
         .join(Classification, Classification.id == PostventaItem.classification_id)
         .join(ItemType, ItemType.id == PostventaItem.item_type_id)
         .outerjoin(Subcontractor, Subcontractor.id == PostventaItem.subcontractor_id)
-        .outerjoin(FailureCause, FailureCause.id == PostventaItem.failure_cause_id)
-        .outerjoin(FailureCauseCategory, FailureCauseCategory.id == FailureCause.category_id)
         .outerjoin(DocumentPostventaItem, DocumentPostventaItem.postventa_item_id == PostventaItem.id)
         .outerjoin(Document, Document.id == DocumentPostventaItem.document_id)
         .where(*filters)
@@ -474,6 +480,23 @@ def list_postventa_items(
         .limit(limit)
         .offset(offset)
     ).all()
+    item_ids = [item.id for item, *_ in rows]
+    causes_by_item: dict[int, list[FailureCauseSummary]] = {item_id: [] for item_id in item_ids}
+    if item_ids:
+        cause_rows = db.execute(
+            select(PostventaItemFailureCause.postventa_item_id, FailureCause, FailureCauseCategory)
+            .join(FailureCause, FailureCause.id == PostventaItemFailureCause.failure_cause_id)
+            .join(FailureCauseCategory, FailureCauseCategory.id == FailureCause.category_id)
+            .where(PostventaItemFailureCause.postventa_item_id.in_(item_ids))
+            .order_by(PostventaItemFailureCause.postventa_item_id, FailureCause.display_name_es)
+        ).all()
+        for item_id, cause, category in cause_rows:
+            causes_by_item[item_id].append(FailureCauseSummary(
+                code=cause.code,
+                display_name_es=cause.display_name_es,
+                category_code=category.code,
+                category_name_es=category.display_name_es,
+            ))
     return PostventaItemListResponse(
         items=[
             PostventaItemListItem(
@@ -487,12 +510,7 @@ def list_postventa_items(
                 request_date=item.request_date,
                 subcontractor=subcontractor,
                 handled_by=item.handled_by,
-                failure_cause=FailureCauseSummary(
-                    code=cause.code,
-                    display_name_es=cause.display_name_es,
-                    category_code=category.code,
-                    category_name_es=category.display_name_es,
-                ) if cause and category else None,
+                failure_causes=causes_by_item.get(item.id, []),
                 document=DocumentSummary(
                     public_id=document.public_id,
                     original_filename=document.original_filename,
@@ -501,7 +519,7 @@ def list_postventa_items(
                     processed_at=document.processed_at,
                 ) if document else None,
             )
-            for item, project_name, classification, item_type, subcontractor, cause, category, document in rows
+            for item, project_name, classification, item_type, subcontractor, document in rows
         ],
         page=PageMeta(total=total, limit=limit, offset=offset),
     )

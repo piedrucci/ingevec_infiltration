@@ -11,7 +11,7 @@ from pypdf import PdfReader
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Document, DocumentPostventaItem, FailureCause, FailureCauseAlias
+from app.models import Document, DocumentPostventaItem, FailureCause, FailureCauseAlias, PostventaItemFailureCause
 from app.services.document_candidates import find_document_candidates
 from app.services.storage import copy_private_object, delete_private_object, get_private_object
 from app.services.dashboard_cache import invalidate_dashboard_summary
@@ -107,14 +107,14 @@ def _unit_identifier(value: str) -> str | None:
     return f"{match.group(1).upper()}{match.group(2)}" if match else None
 
 
-def _failure_cause(db: Session, value: str | None) -> FailureCause | None:
+def _failure_causes(db: Session, value: str | None) -> list[FailureCause]:
     """Resolve a raw PDF narrative to a reviewed, controlled cause.
 
-    Unknown wording deliberately returns ``None`` instead of creating a new
-    reporting dimension from free text. The document remains pending review.
+    Unknown wording deliberately returns an empty list instead of creating a
+    new reporting dimension from free text. The document remains pending review.
     """
     if not value:
-        return None
+        return []
     normalized_value = _normalized(value)
     aliases = db.execute(
         select(FailureCauseAlias, FailureCause)
@@ -126,7 +126,13 @@ def _failure_cause(db: Session, value: str | None) -> FailureCause | None:
         for alias, cause in aliases
         if alias.normalized_alias in normalized_value
     ]
-    return max(matches, key=lambda match: len(match[0]))[1] if matches else None
+    causes: list[FailureCause] = []
+    seen: set[int] = set()
+    for _, cause in sorted(matches, key=lambda match: len(match[0]), reverse=True):
+        if cause.id not in seen:
+            causes.append(cause)
+            seen.add(cause.id)
+    return causes
 
 
 def _destination_key(document: Document, folder: str) -> str:
@@ -151,12 +157,12 @@ class ProcessingResult:
     matched_items: int
 
 
-def process_document(db: Session, document_id: int) -> ProcessingResult:
-    """Process one event idempotently and leave uncertain work for an administrator."""
+def process_document(db: Session, document_id: int, *, force: bool = False) -> ProcessingResult:
+    """Process one event idempotently, optionally reprocessing a terminal document."""
     document = db.get(Document, document_id)
     if document is None:
         raise ValueError(f"Document {document_id} does not exist")
-    if document.status in {"MATCHED", "PENDING_REVIEW", "UNMATCHED", "FAILED", "QUARANTINED"}:
+    if not force and document.status in {"MATCHED", "PENDING_REVIEW", "UNMATCHED", "FAILED", "QUARANTINED"}:
         return ProcessingResult(document.id, document.status, 0)
 
     source_key = document.object_key
@@ -167,7 +173,7 @@ def process_document(db: Session, document_id: int) -> ProcessingResult:
         details = extract_pdf_details(get_private_object(source_key))
         document.extracted_data = details
         document.extracted_failure_cause = details["failure_cause"]
-        cause = _failure_cause(db, details["failure_cause"])
+        causes = _failure_causes(db, details["failure_cause"])
 
         project_number = details["project_number"]
         location = details["infiltration_location"]
@@ -189,7 +195,7 @@ def process_document(db: Session, document_id: int) -> ProcessingResult:
         for item, confidence in selected:
             # An unclassified cause requires a deliberate admin decision. Do not
             # consume the item with a partial automatic association.
-            if cause is None:
+            if not causes:
                 continue
             existing = db.scalar(
                 select(DocumentPostventaItem).where(DocumentPostventaItem.postventa_item_id == item.id)
@@ -204,10 +210,18 @@ def process_document(db: Session, document_id: int) -> ProcessingResult:
                     confidence=confidence,
                     rationale=f"Coincidencia de obra {project_number} y lugar de filtración",
                 ))
-            item.failure_cause_id = cause.id if cause else None
+            for cause in causes:
+                db.merge(PostventaItemFailureCause(
+                    postventa_item_id=item.id,
+                    failure_cause_id=cause.id,
+                    source_document_id=document.id,
+                    assignment_source="AUTOMATIC",
+                ))
+            # Keep the legacy field populated during the compatibility rollout.
+            item.failure_cause_id = causes[0].id
             associated += 1
 
-        if associated and cause:
+        if associated and causes:
             document.status = "MATCHED"
             _move_document(document, "processed")
         else:
@@ -217,12 +231,13 @@ def process_document(db: Session, document_id: int) -> ProcessingResult:
         document.processed_at = datetime.now(timezone.utc)
         db.commit()
         invalidate_dashboard_summary()
-        try:
-            delete_private_object(source_key)
-        except Exception:
-            # The canonical copy and its database path are already committed. A
-            # later cleanup task can safely remove a leftover incoming object.
-            pass
+        if source_key != document.object_key:
+            try:
+                delete_private_object(source_key)
+            except Exception:
+                # The canonical copy and its database path are already committed. A
+                # later cleanup task can safely remove a leftover incoming object.
+                pass
         return ProcessingResult(document.id, document.status, associated)
     except Exception as exc:
         db.rollback()
