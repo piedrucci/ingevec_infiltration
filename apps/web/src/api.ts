@@ -86,8 +86,11 @@ export function uploadDocument(file: File): Promise<DocumentSummary> {
   });
 }
 
-export function getDocuments(status = ""): Promise<PageResponse<Document>> {
-  const query = new URLSearchParams({ limit: "100", offset: "0" });
+export function getDocuments(status = "", options: { limit?: number; offset?: number } = {}): Promise<PageResponse<Document>> {
+  const query = new URLSearchParams({
+    limit: String(options.limit ?? 15),
+    offset: String(options.offset ?? 0),
+  });
   if (status) query.set("document_status", status);
   return request<PageResponse<Document>>(`/v1/documents?${query}`);
 }

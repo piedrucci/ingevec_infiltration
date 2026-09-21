@@ -28,6 +28,12 @@ h1, h2, p { margin: 0; } h1 { font-size: 1.75rem; } h2 { font-size: 1.15rem; }
 .project-manager-progress { margin-bottom: 1rem; }.project-manager-progress .section-title p { margin-top: .3rem; }.progress-cell { min-width: 180px; }.progress-cell > div { align-items: center; display: grid; gap: .5rem; grid-template-columns: 3.8rem minmax(80px, 1fr); }.progress-cell strong { font-size: .85rem; }
 .table-wrap { overflow-x: auto; } table { border-collapse: collapse; min-width: 850px; width: 100%; } th, td { border-top: 1px solid #e2eaed; padding: .75rem 1rem; text-align: left; vertical-align: top; } th { background: #f8fafb; color: #52707e; font-size: .75rem; letter-spacing: .04em; text-transform: uppercase; } tbody tr { cursor: pointer; } tbody tr:hover, tr.selected { background: #e7f4f6; }
 .pagination { align-items: center; display: flex; gap: 1rem; justify-content: flex-end; padding: 1rem 1.25rem; }
+.result-icon { align-items: center; display: inline-flex; height: 1.5rem; justify-content: center; width: 1.5rem; }
+.result-icon svg { height: 1.35rem; width: 1.35rem; }
+.result-icon circle, .result-icon > svg > path:first-child { fill: none; stroke: currentColor; stroke-width: 1.8; }
+.result-icon-mark { fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2; }
+.result-icon-success { color: #17633a; }
+.result-icon-error { color: #98261f; }
 .error { background: #fff0ef; border: 1px solid #f0b7b3; border-radius: 7px; color: #9f2920; margin-bottom: 1rem; padding: .8rem 1rem; }.loading { color: #52707e; margin-bottom: 1rem; }.loading-block { display: grid; place-items: center; min-height: 7rem; }.loading-indicator { align-items: center; color: #52707e; display: inline-flex; font-weight: 700; gap: .55rem; }.loading-indicator-compact { font-size: .85rem; }.spinner { animation: spinner-rotate .7s linear infinite; border: 2px solid #b9ced7; border-radius: 50%; border-top-color: #076d85; display: inline-block; height: 1.15rem; width: 1.15rem; }.loading-indicator-compact .spinner { height: .9rem; width: .9rem; }@keyframes spinner-rotate { to { transform: rotate(360deg); } }.centered { margin-top: 15vh; max-width: 500px; text-align: center; }.centered p { margin: 1rem 0; }
 @media (max-width: 720px) { main { padding: 1rem; }.app-header, .toolbar form { align-items: flex-start; flex-direction: column; }.toolbar input { min-width: 100%; }.upload-result, .metric-grid, .dashboard-grid { grid-template-columns: 1fr; }.app-nav { overflow-x: auto; } }
 .review-form select[multiple] { min-height: 8rem; }

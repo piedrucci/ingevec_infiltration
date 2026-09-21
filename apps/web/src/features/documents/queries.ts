@@ -5,7 +5,7 @@ import type { Document } from "../../types";
 
 export const documentQueryKeys = {
   all: ["documents"] as const,
-  list: (status: string) => [...documentQueryKeys.all, "list", status] as const,
+  list: (status: string, limit: number, offset: number) => [...documentQueryKeys.all, "list", status, limit, offset] as const,
   detail: (publicId: string) => [...documentQueryKeys.all, "detail", publicId] as const,
   candidates: (publicId: string) => [...documentQueryKeys.all, "candidates", publicId] as const,
   failureCauses: () => [...documentQueryKeys.all, "failure-causes"] as const,
@@ -14,9 +14,9 @@ export const documentQueryKeys = {
 
 const isActive = (document: Document) => document.status === "QUEUED" || document.status === "PROCESSING" || document.status === "UPLOADING";
 
-export function useDocuments(status = "") {
+export function useDocuments(status = "", limit = 15, offset = 0) {
   return useQuery({
-    ...queryOptions({ queryKey: documentQueryKeys.list(status), queryFn: () => getDocuments(status) }),
+    ...queryOptions({ queryKey: documentQueryKeys.list(status, limit, offset), queryFn: () => getDocuments(status, { limit, offset }) }),
     refetchInterval: (query) => query.state.data?.items.some(isActive) ? 3000 : false,
   });
 }

@@ -19,3 +19,22 @@ export function LoadingIndicator({ label = "Cargando…", compact = false }: { l
     <span>{label}</span>
   </span>;
 }
+
+export function DocumentResultIndicator({ message, error = false }: { message: string; error?: boolean }) {
+  return <span
+    className={`result-icon${error ? " result-icon-error" : " result-icon-success"}`}
+    role="img"
+    aria-label={message}
+    title={message}
+  >
+    <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+      {error ? <>
+        <path d="M12 3 2.7 20h18.6L12 3Z" />
+        <path d="M12 9v5M12 17h.01" className="result-icon-mark" />
+      </> : <>
+        <circle cx="12" cy="12" r="9" />
+        <path d="m8 12 2.5 2.5L16 9" className="result-icon-mark" />
+      </>}
+    </svg>
+  </span>;
+}
