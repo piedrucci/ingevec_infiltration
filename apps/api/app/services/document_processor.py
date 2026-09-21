@@ -60,6 +60,14 @@ def _field(text: str, labels: tuple[str, ...]) -> str | None:
     return _clean(match.group(1)) if match else None
 
 
+def _project_number(value: str | None) -> str | None:
+    """Keep only the numeric obra identifier, preserving leading zeroes."""
+    if not value:
+        return None
+    match = re.match(r"\s*(\d+)", value)
+    return match.group(1) if match else _clean(value)
+
+
 def _parse_pdf_text(text: str) -> dict[str, str | None]:
     """Parse stable fields from native or OCR text for the approved template."""
     project_reference = _section(
@@ -101,7 +109,7 @@ def _parse_pdf_text(text: str) -> dict[str, str | None]:
     cause = _field(cause_section or "", (r"Causa(?:\s+de\s+la\s+falla)?",)) or cause_section
 
     return {
-        "project_number": _clean(project_number),
+        "project_number": _project_number(project_number),
         "project_name": _clean(project_name),
         "infiltration_location": _clean(location),
         "failure_cause": _clean(cause),

@@ -69,6 +69,7 @@ export type Document = DocumentSummary & {
   extracted_failure_cause: string | null;
   processing_error: string | null;
   association_count: number;
+  projects?: string[];
 };
 
 export type DocumentAssociation = {

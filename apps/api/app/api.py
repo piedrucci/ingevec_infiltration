@@ -7,6 +7,7 @@ from botocore.exceptions import ClientError
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 from openpyxl.utils.exceptions import InvalidFileException
 from sqlalchemy import func, or_, select
+from sqlalchemy.dialects.postgresql import aggregate_order_by
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -70,7 +71,7 @@ dashboard_router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 logger = logging.getLogger(__name__)
 
 
-def _document_list_item(document: Document, association_count: int) -> DocumentListItem:
+def _document_list_item(document: Document, association_count: int, projects: list[str] | None = None) -> DocumentListItem:
     return DocumentListItem(
         public_id=document.public_id,
         original_filename=document.original_filename,
@@ -82,6 +83,7 @@ def _document_list_item(document: Document, association_count: int) -> DocumentL
         extracted_failure_cause=document.extracted_failure_cause,
         processing_error=document.processing_error,
         association_count=association_count,
+        projects=projects or [],
     )
 
 
@@ -159,16 +161,22 @@ def list_documents(
         filters.append(Document.original_filename.ilike(f"%{search.strip()}%"))
     total = db.scalar(select(func.count()).select_from(Document).where(*filters)) or 0
     rows = db.execute(
-        select(Document, func.count(DocumentPostventaItem.postventa_item_id).label("association_count"))
+        select(
+            Document,
+            func.count(DocumentPostventaItem.postventa_item_id).label("association_count"),
+            func.array_agg(aggregate_order_by(Project.id.distinct(), Project.id)).filter(Project.id.is_not(None)).label("projects"),
+        )
         .outerjoin(DocumentPostventaItem, DocumentPostventaItem.document_id == Document.id)
+        .outerjoin(PostventaItem, PostventaItem.id == DocumentPostventaItem.postventa_item_id)
+        .outerjoin(Project, Project.id == PostventaItem.project_id)
         .where(*filters)
         .group_by(Document.id)
-        .order_by(Document.uploaded_at.desc(), Document.id.desc())
+        .order_by(func.min(Project.id).nulls_last(), Document.uploaded_at.desc(), Document.id.desc())
         .limit(limit)
         .offset(offset)
     ).all()
     return DocumentListResponse(
-        items=[_document_list_item(document, association_count) for document, association_count in rows],
+        items=[_document_list_item(document, association_count, projects) for document, association_count, projects in rows],
         page=PageMeta(total=total, limit=limit, offset=offset),
     )
 

@@ -90,6 +90,7 @@ class DocumentListItem(DocumentSummary):
     extracted_failure_cause: str | None
     processing_error: str | None
     association_count: int
+    projects: list[str] = Field(default_factory=list)
 
 
 class DocumentListResponse(BaseModel):
