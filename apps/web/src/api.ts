@@ -3,9 +3,12 @@ import type { DashboardSummary, Document, DocumentCandidateResponse, DocumentDet
 
 type ApiErrorDetail = string | { code?: string; document_public_id?: string; original_filename?: string };
 
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
+const apiUrl = (path: string) => `${API_BASE_URL}${path}`;
+
 async function request<T>(path: string): Promise<T> {
   const token = await accessToken();
-  const response = await fetch(path, {
+  const response = await fetch(apiUrl(path), {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!response.ok) {
@@ -20,7 +23,7 @@ async function request<T>(path: string): Promise<T> {
 
 async function requestBlob(path: string): Promise<Blob> {
   const token = await accessToken();
-  const response = await fetch(path, {
+  const response = await fetch(apiUrl(path), {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!response.ok) {
@@ -72,7 +75,7 @@ export function uploadDocument(file: File): Promise<DocumentSummary> {
   const body = new FormData();
   body.set("file", file);
   return accessToken().then(async (token) => {
-    const response = await fetch("/v1/documents/upload", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body });
+    const response = await fetch(apiUrl("/v1/documents/upload"), { method: "POST", headers: { Authorization: `Bearer ${token}` }, body });
     if (!response.ok) {
       const payload = await response.json().catch(() => null) as { detail?: unknown } | null;
       const error = new Error(`La carga fue rechazada (${response.status}).`) as Error & { detail?: unknown };
@@ -107,7 +110,7 @@ export function getFailureCauseCategories(): Promise<FailureCauseCategoryOption[
 
 export function createFailureCause(input: { code: string; displayNameEs: string; categoryCode: string; aliases: string[] }): Promise<FailureCauseOption> {
   return accessToken().then(async (token) => {
-    const response = await fetch("/v1/documents/failure-causes", {
+    const response = await fetch(apiUrl("/v1/documents/failure-causes"), {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({ code: input.code, display_name_es: input.displayNameEs, category_code: input.categoryCode, aliases: input.aliases }),
@@ -122,7 +125,7 @@ export function createFailureCause(input: { code: string; displayNameEs: string;
 
 export function associateDocument(documentPublicId: string, postventaItemPublicIds: string[], failureCauseCodes: string[]): Promise<DocumentDetail> {
   return accessToken().then(async (token) => {
-    const response = await fetch(`/v1/documents/${documentPublicId}/associations`, {
+    const response = await fetch(apiUrl(`/v1/documents/${documentPublicId}/associations`), {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({ postventa_item_public_ids: postventaItemPublicIds, failure_cause_codes: failureCauseCodes }),

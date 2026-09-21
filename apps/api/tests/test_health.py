@@ -7,3 +7,16 @@ def test_health_reports_environment():
     response = TestClient(app).get("/health")
     assert response.status_code == 200
     assert response.json() == {"status": "ok", "environment": "development"}
+
+
+def test_api_allows_configured_frontend_origin():
+    response = TestClient(app).options(
+        "/v1/dashboard/summary",
+        headers={
+            "Origin": "http://localhost:5173",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://localhost:5173"

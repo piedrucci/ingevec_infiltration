@@ -12,4 +12,5 @@ os.environ.update({
     "OIDC_ISSUER": "http://localhost:8080/realms/test",
     "OIDC_AUDIENCE": "capix-api",
     "OIDC_JWKS_URL": "http://localhost:8080/realms/test/protocol/openid-connect/certs",
+    "CORS_ALLOWED_ORIGINS": "http://localhost:5173",
 })
