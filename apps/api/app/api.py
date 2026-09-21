@@ -158,8 +158,23 @@ def list_documents(
     if document_status:
         filters.append(Document.status == document_status)
     if search:
-        filters.append(Document.original_filename.ilike(f"%{search.strip()}%"))
-    total = db.scalar(select(func.count()).select_from(Document).where(*filters)) or 0
+        term = f"%{search.strip()}%"
+        filters.append(
+            or_(
+                Document.original_filename.ilike(term),
+                Project.id.ilike(term),
+                Project.name.ilike(term),
+                Document.extracted_data["project_number"].astext.ilike(term),
+            )
+        )
+    total = db.scalar(
+        select(func.count(func.distinct(Document.id)))
+        .select_from(Document)
+        .outerjoin(DocumentPostventaItem, DocumentPostventaItem.document_id == Document.id)
+        .outerjoin(PostventaItem, PostventaItem.id == DocumentPostventaItem.postventa_item_id)
+        .outerjoin(Project, Project.id == PostventaItem.project_id)
+        .where(*filters)
+    ) or 0
     rows = db.execute(
         select(
             Document,

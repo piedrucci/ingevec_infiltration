@@ -11,9 +11,10 @@ const dateTime = (value: string) => new Intl.DateTimeFormat("es-CL", { dateStyle
 
 export function DocumentsPage() {
   const [status, setStatus] = useState("");
+  const [search, setSearch] = useState("");
   const [pageSize, setPageSize] = useState<number>(15);
   const [offset, setOffset] = useState(0);
-  const documentsQuery = useDocuments(status, pageSize, offset);
+  const documentsQuery = useDocuments(status, search, pageSize, offset);
   const documents = documentsQuery.data?.items ?? [];
   const total = documentsQuery.data?.page.total ?? 0;
   const hasPrevious = offset > 0;
@@ -29,9 +30,15 @@ export function DocumentsPage() {
     setOffset(0);
   };
 
+  const changeSearch = (value: string) => {
+    setSearch(value);
+    setOffset(0);
+  };
+
   return <section className="card">
     <div className="section-title"><div><p className="eyebrow">DOCUMENTOS</p><h2>Historial de cargas</h2></div><Link className="button-link" to="/documents/upload">Cargar PDFs</Link></div>
     <div className="filters">
+      <label>Buscar <input type="search" value={search} placeholder="Archivo o número de obra" onChange={(event) => changeSearch(event.target.value)} /></label>
       <label>Estado <select value={status} onChange={(event) => changeStatus(event.target.value)}>{statuses.map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
       <label>Filas por página <select value={pageSize} onChange={(event) => changePageSize(Number(event.target.value))}>{pageSizes.map((size) => <option value={size} key={size}>{size}</option>)}</select></label>
       <span>{total} documentos</span>
