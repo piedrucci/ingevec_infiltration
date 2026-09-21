@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 
+import { deleteDocument } from "../../api";
 import type { DocumentStatus } from "../../types";
 import { DocumentResultIndicator, DocumentStatusBadge, ErrorMessage, LoadingIndicator } from "./components";
-import { useDocuments } from "./queries";
+import { documentQueryKeys, useDocuments } from "./queries";
 
 const statuses: Array<[string, string]> = [["", "Todos"], ["QUEUED", "En cola"], ["PROCESSING", "Procesando"], ["MATCHED", "Asociados"], ["PENDING_REVIEW", "Revisión"], ["UNMATCHED", "Sin asociación"], ["FAILED", "Con error"]];
 const pageSizes = [15, 25, 50] as const;
@@ -14,6 +16,9 @@ export function DocumentsPage() {
   const [search, setSearch] = useState("");
   const [pageSize, setPageSize] = useState<number>(15);
   const [offset, setOffset] = useState(0);
+  const [deletingDocument, setDeletingDocument] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<Error | null>(null);
+  const queryClient = useQueryClient();
   const documentsQuery = useDocuments(status, search, pageSize, offset);
   const documents = documentsQuery.data?.items ?? [];
   const total = documentsQuery.data?.page.total ?? 0;
@@ -35,6 +40,20 @@ export function DocumentsPage() {
     setOffset(0);
   };
 
+  const removeDocument = async (publicId: string, filename: string) => {
+    if (!window.confirm(`¿Eliminar el documento "${filename}"? Esta acción no se puede deshacer.`)) return;
+    setDeleteError(null);
+    setDeletingDocument(publicId);
+    try {
+      await deleteDocument(publicId);
+      await queryClient.invalidateQueries({ queryKey: documentQueryKeys.all });
+    } catch (reason) {
+      setDeleteError(reason instanceof Error ? reason : new Error("No fue posible eliminar el documento."));
+    } finally {
+      setDeletingDocument(null);
+    }
+  };
+
   return <section className="card">
     <div className="section-title"><div><p className="eyebrow">DOCUMENTOS</p><h2>Historial de cargas</h2></div><Link className="button-link" to="/documents/upload">Cargar PDFs</Link></div>
     <div className="filters">
@@ -43,9 +62,9 @@ export function DocumentsPage() {
       <label>Filas por página <select value={pageSize} onChange={(event) => changePageSize(Number(event.target.value))}>{pageSizes.map((size) => <option value={size} key={size}>{size}</option>)}</select></label>
       <span>{total} documentos</span>
     </div>
-    <ErrorMessage error={documentsQuery.error} />
+    <ErrorMessage error={deleteError ?? documentsQuery.error} />
     {documentsQuery.isLoading && <div className="loading-block"><LoadingIndicator label="Cargando documentos…" /></div>}
-    <div className="table-wrap"><table><thead><tr><th>Archivo</th><th>Obra</th><th>Estado</th><th>Asociaciones</th><th>Fecha de carga</th><th>Resultado</th></tr></thead><tbody>{documents.map((document) => { const result = document.processing_error || (document.status === "MATCHED" ? "Procesado correctamente" : null); const projects = document.projects ?? []; const detectedProject = document.extracted_data?.project_number; const obra = projects.length ? projects.join(", ") : (detectedProject?.match(/^\s*(\d+)/)?.[1] || "-"); return <tr key={document.public_id}><td><Link to={`/documents/${document.public_id}/review`}>{document.original_filename}</Link></td><td>{obra}</td><td><DocumentStatusBadge status={document.status as DocumentStatus} /></td><td>{document.association_count}</td><td>{dateTime(document.uploaded_at)}</td><td>{result ? <DocumentResultIndicator message={result} error={Boolean(document.processing_error)} /> : "-"}</td></tr>; })}{!documentsQuery.isLoading && documents.length === 0 && <tr><td colSpan={6}>No hay documentos para este filtro.</td></tr>}</tbody></table></div>
+    <div className="table-wrap"><table><thead><tr><th>Archivo</th><th>Obra</th><th>Estado</th><th>Asociaciones</th><th>Fecha de carga</th><th>Resultado</th><th>Acciones</th></tr></thead><tbody>{documents.map((document) => { const result = document.processing_error || (document.status === "MATCHED" ? "Procesado correctamente" : null); const projects = document.projects ?? []; const detectedProject = document.extracted_data?.project_number; const obra = projects.length ? projects.join(", ") : (detectedProject?.match(/^\s*(\d+)/)?.[1] || "-"); return <tr key={document.public_id}><td><Link to={`/documents/${document.public_id}/review`}>{document.original_filename}</Link></td><td>{obra}</td><td><DocumentStatusBadge status={document.status as DocumentStatus} /></td><td>{document.association_count}</td><td>{dateTime(document.uploaded_at)}</td><td>{result ? <DocumentResultIndicator message={result} error={Boolean(document.processing_error)} /> : "-"}</td><td><button className="danger document-delete-button" type="button" aria-label={`Eliminar documento ${document.original_filename}`} title={`Eliminar ${document.original_filename}`} disabled={deletingDocument === document.public_id} onClick={() => void removeDocument(document.public_id, document.original_filename)}>{deletingDocument === document.public_id ? <LoadingIndicator label="Eliminando…" compact /> : <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3" /></svg>}</button></td></tr>; })}{!documentsQuery.isLoading && documents.length === 0 && <tr><td colSpan={7}>No hay documentos para este filtro.</td></tr>}</tbody></table></div>
     <div className="pagination"><button className="secondary" type="button" disabled={!hasPrevious || documentsQuery.isFetching} onClick={() => setOffset((value) => Math.max(0, value - pageSize))}>Anterior</button><span>{total ? `${offset + 1}–${Math.min(offset + pageSize, total)} de ${total}` : "0 documentos"}</span><button className="secondary" type="button" disabled={!hasNext || documentsQuery.isFetching} onClick={() => setOffset((value) => value + pageSize)}>Siguiente</button></div>
   </section>;
 }

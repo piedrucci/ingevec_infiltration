@@ -18,6 +18,10 @@ h1, h2, p { margin: 0; } h1 { font-size: 1.75rem; } h2 { font-size: 1.15rem; }
 .document-icon-link svg { height: 2rem; width: 1.8rem; }
 .document-icon-link svg path { fill: none; stroke: currentColor; stroke-linejoin: round; stroke-width: 1.6; }
 .document-icon-link svg text { fill: currentColor; font-size: 7px; font-weight: 700; }
+.document-delete-button { color: #98261f; }
+.document-delete-button { align-items: center; display: inline-flex; justify-content: center; }
+.document-delete-button svg { color: #fff; height: 1.35rem; width: 1.35rem; }
+.document-delete-button svg path { fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
 .manager-link, .back-link { color: #076d85; font-weight: 700; text-decoration: underline; }
 .manager-link:hover, .back-link:hover { color: #05566a; }
 .cause-tag { background: #e7f4f6; border-radius: 999px; color: #1f4352; display: inline-block; font-size: .82rem; margin: 0 .3rem .3rem 0; padding: .25rem .5rem; }

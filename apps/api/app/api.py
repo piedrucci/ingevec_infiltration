@@ -269,6 +269,24 @@ def get_document_detail(document_public_id: UUID, _: dict = Depends(require_admi
     ])
 
 
+@documents_router.delete("/{document_public_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_document(document_public_id: UUID, _: dict = Depends(require_admin), db: Session = Depends(get_db)) -> Response:
+    document = db.scalar(select(Document).where(Document.public_id == document_public_id).with_for_update())
+    if document is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+
+    try:
+        delete_private_object(document.object_key)
+    except Exception as exc:
+        logger.exception("Could not delete stored PDF document_id=%s", document.id)
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Document storage is unavailable") from exc
+
+    db.delete(document)
+    db.commit()
+    invalidate_dashboard_summary()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @documents_router.get("/{document_public_id}/candidates", response_model=DocumentCandidateResponse)
 def list_document_candidates(document_public_id: UUID, _: dict = Depends(require_admin), db: Session = Depends(get_db)) -> DocumentCandidateResponse:
     document = db.scalar(select(Document).where(Document.public_id == document_public_id))

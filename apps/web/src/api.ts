@@ -100,6 +100,19 @@ export function getDocument(documentPublicId: string): Promise<DocumentDetail> {
   return request<DocumentDetail>(`/v1/documents/${documentPublicId}`);
 }
 
+export function deleteDocument(documentPublicId: string): Promise<void> {
+  return accessToken().then(async (token) => {
+    const response = await fetch(apiUrl(`/v1/documents/${documentPublicId}`), {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null) as { detail?: string } | null;
+      throw new Error(payload?.detail || `No fue posible eliminar el documento (${response.status}).`);
+    }
+  });
+}
+
 export function getDocumentCandidates(documentPublicId: string): Promise<DocumentCandidateResponse> {
   return request<DocumentCandidateResponse>(`/v1/documents/${documentPublicId}/candidates`);
 }
