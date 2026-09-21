@@ -33,6 +33,8 @@ export type PostventaItem = {
   handled_by: string | null;
   failure_causes: { code: string; display_name_es: string; category_name_es: string }[];
   document: DocumentSummary | null;
+  reconciliation_status: "PENDING" | "RECONCILED";
+  has_document: boolean;
 };
 
 export type PageResponse<T> = { items: T[]; page: Page };
@@ -45,6 +47,10 @@ export type DashboardAssociationBreakdown = {
   associated_items: number;
   pending_items: number;
   association_rate: number;
+  reconciled_items: number;
+  pending_reconciliation_items: number;
+  reconciliation_rate: number;
+  document_coverage_rate: number;
 };
 
 export type DashboardSummary = {
@@ -54,6 +60,10 @@ export type DashboardSummary = {
     associated_items: number;
     pending_items: number;
     association_rate: number;
+    reconciled_items: number;
+    pending_reconciliation_items: number;
+    reconciliation_rate: number;
+    document_coverage_rate: number;
     documents: number;
     documents_by_status: Record<string, number>;
   };

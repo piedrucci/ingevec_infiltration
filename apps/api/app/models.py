@@ -73,7 +73,7 @@ class PostventaItem(Base):
 class PostventaItemFailureCause(Base):
     __tablename__ = 'postventa_item_failure_cause'
     __table_args__ = (
-        CheckConstraint("assignment_source IN ('AUTOMATIC', 'MANUAL', 'MIGRATED')", name='ck_postventa_item_failure_cause_source'),
+        CheckConstraint("assignment_source IN ('AUTOMATIC', 'MANUAL', 'DIRECT_MANUAL', 'MIGRATED')", name='ck_postventa_item_failure_cause_source'),
         {'schema': 'app'},
     )
 

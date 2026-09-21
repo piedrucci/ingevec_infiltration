@@ -47,9 +47,46 @@ export function getPostventaItems(projectId: string): Promise<PageResponse<Postv
   return request<PageResponse<PostventaItem>>(`/v1/postventa-items?${query}`);
 }
 
+export type PostventaItemSearchOptions = {
+  search?: string;
+  documentStatus?: string;
+  reconciliationStatus?: "PENDING" | "RECONCILED";
+  hasDocument?: boolean;
+  limit?: number;
+  offset?: number;
+};
+
+export function searchPostventaItems(options: PostventaItemSearchOptions = {}): Promise<PageResponse<PostventaItem>> {
+  const query = new URLSearchParams({ limit: String(options.limit ?? 50), offset: String(options.offset ?? 0) });
+  if (options.search?.trim()) query.set("search", options.search.trim());
+  if (options.documentStatus) query.set("document_status", options.documentStatus);
+  if (options.reconciliationStatus) query.set("reconciliation_status", options.reconciliationStatus);
+  if (options.hasDocument !== undefined) query.set("has_document", String(options.hasDocument));
+  return request<PageResponse<PostventaItem>>(`/v1/postventa-items?${query}`);
+}
+
+export function getPostventaItem(publicId: string): Promise<PostventaItem> {
+  return request<PostventaItem>(`/v1/postventa-items/${publicId}`);
+}
+
+export function replacePostventaItemFailureCauses(publicId: string, failureCauseCodes: string[]): Promise<PostventaItem> {
+  return accessToken().then(async (token) => {
+    const response = await fetch(apiUrl(`/v1/postventa-items/${publicId}/failure-causes`), {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ failure_cause_codes: failureCauseCodes }),
+    });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null) as { detail?: string } | null;
+      throw new Error(payload?.detail || `No fue posible guardar las causas (${response.status}).`);
+    }
+    return response.json() as Promise<PostventaItem>;
+  });
+}
+
 export function getPostventaItemsByProjectManager(
   projectManagerId: number,
-  options: { search?: string; documentStatus?: string; limit?: number; offset?: number } = {},
+  options: PostventaItemSearchOptions = {},
 ): Promise<PageResponse<PostventaItem>> {
   const query = new URLSearchParams({
     project_manager_id: String(projectManagerId),
@@ -58,6 +95,8 @@ export function getPostventaItemsByProjectManager(
   });
   if (options.search?.trim()) query.set("search", options.search.trim());
   if (options.documentStatus) query.set("document_status", options.documentStatus);
+  if (options.reconciliationStatus) query.set("reconciliation_status", options.reconciliationStatus);
+  if (options.hasDocument !== undefined) query.set("has_document", String(options.hasDocument));
   return request<PageResponse<PostventaItem>>(`/v1/postventa-items?${query}`);
 }
 

@@ -47,6 +47,7 @@ from app.schemas import (
     CreateFailureCauseRequest,
     ManualDocumentAssociationRequest,
     PageMeta,
+    PostventaItemFailureCauseUpdateRequest,
     PostventaItemListItem,
     PostventaItemListResponse,
     ProjectListItem,
@@ -69,6 +70,31 @@ postventa_items_router = APIRouter(prefix="/postventa-items", tags=["postventa-i
 documents_router = APIRouter(prefix="/documents", tags=["documents"])
 dashboard_router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 logger = logging.getLogger(__name__)
+
+
+def _actor_name(claims: dict) -> str:
+    return str(claims.get("email") or claims.get("preferred_username") or claims.get("sub") or "admin")[:255]
+
+
+def _failure_cause_summaries(db: Session, item_ids: list[int]) -> dict[int, list[FailureCauseSummary]]:
+    causes_by_item: dict[int, list[FailureCauseSummary]] = {item_id: [] for item_id in item_ids}
+    if not item_ids:
+        return causes_by_item
+    cause_rows = db.execute(
+        select(PostventaItemFailureCause.postventa_item_id, FailureCause, FailureCauseCategory)
+        .join(FailureCause, FailureCause.id == PostventaItemFailureCause.failure_cause_id)
+        .join(FailureCauseCategory, FailureCauseCategory.id == FailureCause.category_id)
+        .where(PostventaItemFailureCause.postventa_item_id.in_(item_ids))
+        .order_by(PostventaItemFailureCause.postventa_item_id, FailureCause.display_name_es)
+    ).all()
+    for item_id, cause, category in cause_rows:
+        causes_by_item[item_id].append(FailureCauseSummary(
+            code=cause.code,
+            display_name_es=cause.display_name_es,
+            category_code=category.code,
+            category_name_es=category.display_name_es,
+        ))
+    return causes_by_item
 
 
 def _document_list_item(document: Document, association_count: int, projects: list[str] | None = None) -> DocumentListItem:
@@ -356,13 +382,19 @@ def create_manual_associations(
                     rationale="Asociación confirmada manualmente por administración",
                 ))
             for cause in causes:
-                db.merge(PostventaItemFailureCause(
-                    postventa_item_id=item.id,
-                    failure_cause_id=cause.id,
-                    source_document_id=document.id,
-                    assignment_source="MANUAL",
-                ))
-            item.failure_cause_id = causes[0].id
+                assignment = db.get(PostventaItemFailureCause, (item.id, cause.id))
+                if assignment is None:
+                    db.add(PostventaItemFailureCause(
+                        postventa_item_id=item.id,
+                        failure_cause_id=cause.id,
+                        source_document_id=document.id,
+                        assignment_source="MANUAL",
+                    ))
+                elif assignment.assignment_source != "DIRECT_MANUAL":
+                    assignment.source_document_id = document.id
+                    assignment.assignment_source = "MANUAL"
+            if item.failure_cause_id is None:
+                item.failure_cause_id = causes[0].id
         document.status = "MATCHED"
         _move_document(document, "processed")
         db.commit()
@@ -470,12 +502,20 @@ def list_postventa_items(
     project_manager_id: int | None = Query(default=None, ge=1),
     search: str | None = Query(default=None, min_length=1, max_length=100),
     document_status: str | None = Query(default=None, max_length=32),
+    reconciliation_status: str | None = Query(default=None, max_length=16),
+    has_document: bool | None = Query(default=None),
     unassociated: bool = Query(default=False),
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     _: dict = Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> PostventaItemListResponse:
+    cause_exists = select(PostventaItemFailureCause.postventa_item_id).where(
+        PostventaItemFailureCause.postventa_item_id == PostventaItem.id
+    ).correlate(PostventaItem).exists()
+    document_exists = select(DocumentPostventaItem.postventa_item_id).where(
+        DocumentPostventaItem.postventa_item_id == PostventaItem.id
+    ).correlate(PostventaItem).exists()
     filters = []
     if project_id:
         filters.append(PostventaItem.project_id == project_id)
@@ -486,8 +526,15 @@ def list_postventa_items(
         filters.append(or_(PostventaItem.notes.ilike(term), Project.name.ilike(term), Project.id.ilike(term)))
     if document_status:
         filters.append(Document.status == document_status)
+    if reconciliation_status:
+        normalized_status = reconciliation_status.upper()
+        if normalized_status not in {"PENDING", "RECONCILED"}:
+            raise HTTPException(status_code=422, detail="Reconciliation status must be PENDING or RECONCILED")
+        filters.append(cause_exists if normalized_status == "RECONCILED" else ~cause_exists)
+    if has_document is not None:
+        filters.append(document_exists if has_document else ~document_exists)
     if unassociated:
-        filters.append(DocumentPostventaItem.document_id.is_(None))
+        filters.append(~document_exists)
 
     base = (
         select(PostventaItem)
@@ -507,6 +554,8 @@ def list_postventa_items(
             ItemType.name.label("item_type"),
             Subcontractor.name.label("subcontractor"),
             Document,
+            cause_exists.label("is_reconciled"),
+            document_exists.label("has_document"),
         )
         .join(Project, Project.id == PostventaItem.project_id)
         .outerjoin(ProjectAdmin, ProjectAdmin.id == Project.project_admin_id)
@@ -522,22 +571,7 @@ def list_postventa_items(
         .offset(offset)
     ).all()
     item_ids = [item.id for item, *_ in rows]
-    causes_by_item: dict[int, list[FailureCauseSummary]] = {item_id: [] for item_id in item_ids}
-    if item_ids:
-        cause_rows = db.execute(
-            select(PostventaItemFailureCause.postventa_item_id, FailureCause, FailureCauseCategory)
-            .join(FailureCause, FailureCause.id == PostventaItemFailureCause.failure_cause_id)
-            .join(FailureCauseCategory, FailureCauseCategory.id == FailureCause.category_id)
-            .where(PostventaItemFailureCause.postventa_item_id.in_(item_ids))
-            .order_by(PostventaItemFailureCause.postventa_item_id, FailureCause.display_name_es)
-        ).all()
-        for item_id, cause, category in cause_rows:
-            causes_by_item[item_id].append(FailureCauseSummary(
-                code=cause.code,
-                display_name_es=cause.display_name_es,
-                category_code=category.code,
-                category_name_es=category.display_name_es,
-            ))
+    causes_by_item = _failure_cause_summaries(db, item_ids)
     return PostventaItemListResponse(
         items=[
             PostventaItemListItem(
@@ -552,6 +586,8 @@ def list_postventa_items(
                 subcontractor=subcontractor,
                 handled_by=item.handled_by,
                 failure_causes=causes_by_item.get(item.id, []),
+                reconciliation_status="RECONCILED" if is_reconciled else "PENDING",
+                has_document=has_document,
                 document=DocumentSummary(
                     public_id=document.public_id,
                     original_filename=document.original_filename,
@@ -560,7 +596,110 @@ def list_postventa_items(
                     processed_at=document.processed_at,
                 ) if document else None,
             )
-            for item, project_name, classification, item_type, subcontractor, document in rows
+            for item, project_name, classification, item_type, subcontractor, document, is_reconciled, has_document in rows
         ],
         page=PageMeta(total=total, limit=limit, offset=offset),
     )
+
+
+def _postventa_item_detail(db: Session, public_id: UUID) -> PostventaItemListItem:
+    cause_exists = select(PostventaItemFailureCause.postventa_item_id).where(
+        PostventaItemFailureCause.postventa_item_id == PostventaItem.id
+    ).correlate(PostventaItem).exists()
+    document_exists = select(DocumentPostventaItem.postventa_item_id).where(
+        DocumentPostventaItem.postventa_item_id == PostventaItem.id
+    ).correlate(PostventaItem).exists()
+    row = db.execute(
+        select(
+            PostventaItem,
+            Project.name.label("project_name"),
+            Classification.name.label("classification"),
+            ItemType.name.label("item_type"),
+            Subcontractor.name.label("subcontractor"),
+            Document,
+            cause_exists.label("is_reconciled"),
+            document_exists.label("has_document"),
+        )
+        .join(Project, Project.id == PostventaItem.project_id)
+        .join(Classification, Classification.id == PostventaItem.classification_id)
+        .join(ItemType, ItemType.id == PostventaItem.item_type_id)
+        .outerjoin(Subcontractor, Subcontractor.id == PostventaItem.subcontractor_id)
+        .outerjoin(DocumentPostventaItem, DocumentPostventaItem.postventa_item_id == PostventaItem.id)
+        .outerjoin(Document, Document.id == DocumentPostventaItem.document_id)
+        .where(PostventaItem.public_id == public_id)
+    ).one_or_none()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Postventa item not found")
+    item, project_name, classification, item_type, subcontractor, document, is_reconciled, has_document = row
+    causes = _failure_cause_summaries(db, [item.id])[item.id]
+    return PostventaItemListItem(
+        id=item.id,
+        public_id=item.public_id,
+        project_id=item.project_id,
+        project_name=project_name,
+        classification=classification,
+        item_type=item_type,
+        notes=item.notes,
+        request_date=item.request_date,
+        subcontractor=subcontractor,
+        handled_by=item.handled_by,
+        failure_causes=causes,
+        reconciliation_status="RECONCILED" if is_reconciled else "PENDING",
+        has_document=has_document,
+        document=DocumentSummary(
+            public_id=document.public_id,
+            original_filename=document.original_filename,
+            status=document.status,
+            uploaded_at=document.uploaded_at,
+            processed_at=document.processed_at,
+        ) if document else None,
+    )
+
+
+@postventa_items_router.get("/{public_id}", response_model=PostventaItemListItem)
+def get_postventa_item(public_id: UUID, _: dict = Depends(require_admin), db: Session = Depends(get_db)) -> PostventaItemListItem:
+    return _postventa_item_detail(db, public_id)
+
+
+@postventa_items_router.put("/{public_id}/failure-causes", response_model=PostventaItemListItem)
+def replace_postventa_item_failure_causes(
+    public_id: UUID,
+    payload: PostventaItemFailureCauseUpdateRequest,
+    claims: dict = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> PostventaItemListItem:
+    cause_codes = list(dict.fromkeys(payload.failure_cause_codes))
+    causes = db.scalars(
+        select(FailureCause)
+        .where(FailureCause.code.in_(cause_codes), FailureCause.is_active.is_(True))
+        .order_by(FailureCause.code)
+    ).all() if cause_codes else []
+    if len(causes) != len(cause_codes):
+        raise HTTPException(status_code=422, detail="One or more failure causes are inactive or do not exist")
+
+    item = db.scalar(select(PostventaItem).where(PostventaItem.public_id == public_id).with_for_update())
+    if item is None:
+        raise HTTPException(status_code=404, detail="Postventa item not found")
+
+    selected_cause_ids = {cause.id for cause in causes}
+    current = db.scalars(
+        select(PostventaItemFailureCause)
+        .where(PostventaItemFailureCause.postventa_item_id == item.id)
+        .with_for_update()
+    ).all()
+    current_by_cause_id = {assignment.failure_cause_id: assignment for assignment in current}
+    for assignment in current:
+        if assignment.failure_cause_id not in selected_cause_ids:
+            db.delete(assignment)
+    for cause in causes:
+        if cause.id not in current_by_cause_id:
+            db.add(PostventaItemFailureCause(
+                postventa_item_id=item.id,
+                failure_cause_id=cause.id,
+                assignment_source="DIRECT_MANUAL",
+                assigned_by=_actor_name(claims),
+            ))
+    item.failure_cause_id = causes[0].id if causes else None
+    db.commit()
+    invalidate_dashboard_summary()
+    return _postventa_item_detail(db, public_id)

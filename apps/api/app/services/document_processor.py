@@ -321,14 +321,22 @@ def process_document(db: Session, document_id: int, *, force: bool = False) -> P
                     rationale=f"Coincidencia de obra {project_number} y lugar de filtración",
                 ))
             for cause in causes:
-                db.merge(PostventaItemFailureCause(
-                    postventa_item_id=item.id,
-                    failure_cause_id=cause.id,
-                    source_document_id=document.id,
-                    assignment_source="AUTOMATIC",
-                ))
+                assignment = db.get(PostventaItemFailureCause, (item.id, cause.id))
+                if assignment is None:
+                    db.add(PostventaItemFailureCause(
+                        postventa_item_id=item.id,
+                        failure_cause_id=cause.id,
+                        source_document_id=document.id,
+                        assignment_source="AUTOMATIC",
+                    ))
+                elif assignment.assignment_source != "DIRECT_MANUAL":
+                    # A direct reconciliation is an explicit user decision. A
+                    # later PDF may add another cause, but must not overwrite it.
+                    assignment.source_document_id = document.id
+                    assignment.assignment_source = "AUTOMATIC"
             # Keep the legacy field populated during the compatibility rollout.
-            item.failure_cause_id = causes[0].id
+            if item.failure_cause_id is None:
+                item.failure_cause_id = causes[0].id
             associated += 1
 
         if associated and causes:

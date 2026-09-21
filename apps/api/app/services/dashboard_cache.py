@@ -16,7 +16,7 @@ from redis.exceptions import RedisError
 from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
-_VERSION_KEY = "dashboard:summary:version:v3"
+_VERSION_KEY = "dashboard:summary:version:v4"
 
 
 @lru_cache(maxsize=1)
@@ -41,7 +41,7 @@ def dashboard_cache_version() -> str:
 
 
 def get_dashboard_summary(version: str) -> dict[str, Any] | None:
-    value = _safe("read", lambda client: client.get(f"dashboard:summary:v3:{version}"))
+    value = _safe("read", lambda client: client.get(f"dashboard:summary:v4:{version}"))
     if not value:
         return None
     try:
@@ -52,7 +52,7 @@ def get_dashboard_summary(version: str) -> dict[str, Any] | None:
 
 def set_dashboard_summary(version: str, payload: dict[str, Any]) -> None:
     ttl = get_settings().DASHBOARD_CACHE_TTL_SECONDS
-    _safe("write", lambda client: client.setex(f"dashboard:summary:v3:{version}", ttl, json.dumps(payload)))
+    _safe("write", lambda client: client.setex(f"dashboard:summary:v4:{version}", ttl, json.dumps(payload)))
 
 
 def invalidate_dashboard_summary() -> None:

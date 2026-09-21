@@ -20,7 +20,16 @@ WITH base AS (
     COALESCE(NULLIF(BTRIM(it.name), ''), 'Sin asignar') AS item_type,
     COALESCE(NULLIF(BTRIM(sc.name), ''), 'Sin asignar') AS subcontractor,
     COALESCE(NULLIF(BTRIM(pi.handled_by), ''), 'Sin asignar') AS handled_by,
-    (dpi.postventa_item_id IS NOT NULL) AS is_associated
+    EXISTS (
+      SELECT 1
+      FROM app.document_postventa_item dpi
+      WHERE dpi.postventa_item_id = pi.id
+    ) AS has_document,
+    EXISTS (
+      SELECT 1
+      FROM app.postventa_item_failure_cause pifc
+      WHERE pifc.postventa_item_id = pi.id
+    ) AS is_reconciled
   FROM app.postventa_item pi
   JOIN app.project p ON p.id = pi.project_id
   LEFT JOIN app.project_admin pa ON pa.id = p.project_admin_id
@@ -29,14 +38,15 @@ WITH base AS (
   JOIN app.classification c ON c.id = pi.classification_id
   JOIN app.item_type it ON it.id = pi.item_type_id
   LEFT JOIN app.subcontractor sc ON sc.id = pi.subcontractor_id
-  LEFT JOIN app.document_postventa_item dpi ON dpi.postventa_item_id = pi.id
 ),
 documents AS (SELECT status, COUNT(*)::int AS count FROM app.document GROUP BY status)
 SELECT jsonb_build_object(
   'totals', jsonb_build_object(
     'items', (SELECT COUNT(*)::int FROM base),
-    'associated_items', (SELECT COUNT(*)::int FROM base WHERE is_associated),
-    'pending_items', (SELECT COUNT(*)::int FROM base WHERE NOT is_associated),
+    'associated_items', (SELECT COUNT(*)::int FROM base WHERE has_document),
+    'pending_items', (SELECT COUNT(*)::int FROM base WHERE NOT has_document),
+    'reconciled_items', (SELECT COUNT(*)::int FROM base WHERE is_reconciled),
+    'pending_reconciliation_items', (SELECT COUNT(*)::int FROM base WHERE NOT is_reconciled),
     'documents', (SELECT COUNT(*)::int FROM app.document),
     'documents_by_status', COALESCE((SELECT jsonb_object_agg(status, count) FROM documents), '{}'::jsonb)
   ),
@@ -53,13 +63,18 @@ SELECT jsonb_build_object(
       'project_manager_id', project_manager_id,
       'name', name,
       'items', items,
-      'associated_items', associated_items,
-      'pending_items', items - associated_items,
-      'association_rate', CASE WHEN items > 0 THEN associated_items::numeric / items ELSE 0 END
-    ) ORDER BY (items - associated_items) DESC, name)
+      'associated_items', documented_items,
+      'pending_items', items - documented_items,
+      'association_rate', CASE WHEN items > 0 THEN documented_items::numeric / items ELSE 0 END,
+      'reconciled_items', reconciled_items,
+      'pending_reconciliation_items', items - reconciled_items,
+      'reconciliation_rate', CASE WHEN items > 0 THEN reconciled_items::numeric / items ELSE 0 END,
+      'document_coverage_rate', CASE WHEN items > 0 THEN documented_items::numeric / items ELSE 0 END
+    ) ORDER BY (items - reconciled_items) DESC, name)
     FROM (
       SELECT project_manager_id, project_manager AS name, COUNT(*)::int AS items,
-        COUNT(*) FILTER (WHERE is_associated)::int AS associated_items
+        COUNT(*) FILTER (WHERE has_document)::int AS documented_items,
+        COUNT(*) FILTER (WHERE is_reconciled)::int AS reconciled_items
       FROM base GROUP BY project_manager_id, project_manager
     ) grouped
   ), '[]'::jsonb)
@@ -76,14 +91,19 @@ def dashboard_summary(db: Session) -> DashboardSummary:
     raw = db.scalar(_SUMMARY_SQL) or {"totals": {}, "breakdowns": {}}
     totals = raw["totals"]
     items = totals["items"]
-    associated = totals["associated_items"]
+    documented = totals["associated_items"]
+    reconciled = totals["reconciled_items"]
     result = DashboardSummary(
         generated_at=datetime.now(timezone.utc),
         totals=DashboardTotals(
             items=items,
-            associated_items=associated,
+            associated_items=documented,
             pending_items=totals["pending_items"],
-            association_rate=(associated / items) if items else 0,
+            association_rate=(documented / items) if items else 0,
+            reconciled_items=reconciled,
+            pending_reconciliation_items=totals["pending_reconciliation_items"],
+            reconciliation_rate=(reconciled / items) if items else 0,
+            document_coverage_rate=(documented / items) if items else 0,
             documents=totals["documents"],
             documents_by_status=totals["documents_by_status"],
         ),

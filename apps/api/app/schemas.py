@@ -18,16 +18,26 @@ class DashboardAssociationBreakdown(BaseModel):
     project_manager_id: int | None
     name: str
     items: int
+    # Deprecated document-coverage fields retained for API compatibility.
     associated_items: int
     pending_items: int
     association_rate: float
+    reconciled_items: int
+    pending_reconciliation_items: int
+    reconciliation_rate: float
+    document_coverage_rate: float
 
 
 class DashboardTotals(BaseModel):
     items: int
+    # Deprecated document-coverage fields retained for API compatibility.
     associated_items: int
     pending_items: int
     association_rate: float
+    reconciled_items: int
+    pending_reconciliation_items: int
+    reconciliation_rate: float
+    document_coverage_rate: float
     documents: int
     documents_by_status: dict[str, int]
 
@@ -152,6 +162,10 @@ class ManualDocumentAssociationRequest(BaseModel):
     failure_cause_codes: list[str] = Field(min_length=1, max_length=20)
 
 
+class PostventaItemFailureCauseUpdateRequest(BaseModel):
+    failure_cause_codes: list[str] = Field(default_factory=list, max_length=20)
+
+
 class PostventaItemListItem(BaseModel):
     id: int
     public_id: UUID
@@ -164,6 +178,8 @@ class PostventaItemListItem(BaseModel):
     subcontractor: str | None
     handled_by: str | None
     failure_causes: list[FailureCauseSummary]
+    reconciliation_status: str
+    has_document: bool
     document: DocumentSummary | None
 
 
