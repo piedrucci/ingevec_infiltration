@@ -1,20 +1,29 @@
 """Extract and conservatively match post-sale infiltration PDFs."""
 
+import logging
 import re
+import time
 import unicodedata
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from io import BytesIO
 from pathlib import PurePosixPath
 
+import pymupdf
+import pytesseract
+from PIL import Image
 from pypdf import PdfReader
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.models import Document, DocumentPostventaItem, FailureCause, FailureCauseAlias, PostventaItemFailureCause
 from app.services.document_candidates import find_document_candidates
 from app.services.storage import copy_private_object, delete_private_object, get_private_object
 from app.services.dashboard_cache import invalidate_dashboard_summary
+
+
+logger = logging.getLogger(__name__)
 
 
 def _normalized(value: str) -> str:
@@ -51,28 +60,43 @@ def _field(text: str, labels: tuple[str, ...]) -> str | None:
     return _clean(match.group(1)) if match else None
 
 
-def extract_pdf_details(content: bytes) -> dict[str, str | None]:
-    """Extract the stable fields from the approved infiltration-report template."""
-    reader = PdfReader(BytesIO(content))
-    text = "\n".join(page.extract_text() or "" for page in reader.pages)
-    if not text.strip():
-        raise ValueError("The PDF has no extractable text")
-
+def _parse_pdf_text(text: str) -> dict[str, str | None]:
+    """Parse stable fields from native or OCR text for the approved template."""
     project_reference = _section(
         text,
         r"Proyecto\s+en\s+que\s+se\s+detecta\s*",
         r"(?:\n\s*Tipo\s+de\s+filtraci[oó]n:)|(?:\n\s*Gerente\s+de\s+proyecto)",
     )
-    project_number = _field(text, (r"N[°ºo]?\s*(?:de\s*)?obra", r"N[°ºo]?\s*proyecto"))
+    project_number = _field(text, (r"N[°ºo2*?]?\s*(?:de\s*)?obra", r"N[°ºo2*?]?\s*proyecto"))
+    if not project_number:
+        number_match = re.search(
+            r"N[°ºo2*?]?\s*(?:de\s*)?obra\s*[:#-]?\s*\(?\s*(\d+)",
+            text,
+            flags=re.IGNORECASE,
+        )
+        project_number = number_match.group(1) if number_match else None
     project_name = _field(text, (r"Nombre\s+(?:del\s+)?proyecto", r"Proyecto"))
     if project_reference:
         project_number = re.match(r"\d+", project_reference).group(0) if re.match(r"\d+", project_reference) else project_number
         project_name = re.sub(r"^\d+\s*[-–]?\s*", "", project_reference) or project_name
+    if not project_name:
+        detected_project = re.search(
+            r"detecta(?:[ \t]*[:#-]?[ \t]*|\s*[\r\n]+\s*)([^\r\n]+)",
+            text,
+            flags=re.IGNORECASE,
+        )
+        if detected_project:
+            project_name = re.split(
+                r"\s+(?:TIPO\s+DE\s+FILTRACI[ÓO]N|INSTALACIONES|LOSA|BOW\s+WINDOWS)\b",
+                detected_project.group(1),
+                maxsplit=1,
+                flags=re.IGNORECASE,
+            )[0]
     location = _field(text, (r"Lugar\s+de\s+la\s+filtraci[oó]n",))
     cause_section = _section(
         text,
         r"3\s*[.)-]?\s*AN[ÁA]LISIS\s+DE\s+CAUSA\s+DE\s+LA\s+FALLA",
-        r"(?:\n\s*4\s*[.)-])|(?:\n\s*CONCLUSI[ÓO]N)",
+        r"(?:\n\s*4\s*(?:[.)-]|\n))|(?:\n\s*CONCLUSI[ÓO]N)",
     )
     cause = _field(cause_section or "", (r"Causa(?:\s+de\s+la\s+falla)?",)) or cause_section
 
@@ -82,6 +106,84 @@ def extract_pdf_details(content: bytes) -> dict[str, str | None]:
         "infiltration_location": _clean(location),
         "failure_cause": _clean(cause),
     }
+
+
+def _extract_native_text(content: bytes) -> str:
+    reader = PdfReader(BytesIO(content))
+    return "\n".join(page.extract_text() or "" for page in reader.pages)
+
+
+def _needs_ocr(details: dict[str, str | None]) -> bool:
+    has_project = bool(details["project_number"] or details["project_name"])
+    return not has_project or not details["infiltration_location"] or not details["failure_cause"]
+
+
+def _ocr_pdf_text(content: bytes) -> str:
+    settings = get_settings()
+    started_at = time.monotonic()
+    pages: list[str] = []
+    try:
+        document = pymupdf.open(stream=content, filetype="pdf")
+    except Exception as exc:
+        raise ValueError("The PDF could not be opened for OCR") from exc
+
+    try:
+        if document.page_count > settings.OCR_MAX_PAGES:
+            raise ValueError(
+                f"PDF has {document.page_count} pages; OCR is limited to {settings.OCR_MAX_PAGES} pages"
+            )
+        for page_number, page in enumerate(document, start=1):
+            pixmap = page.get_pixmap(dpi=settings.OCR_DPI, alpha=False)
+            with Image.open(BytesIO(pixmap.tobytes("png"))) as image:
+                try:
+                    page_text = pytesseract.image_to_string(
+                        image,
+                        lang=settings.OCR_LANGUAGE,
+                        # Sparse-text mode handles the report's table layout much
+                        # better than Tesseract's default page segmentation.
+                        config="--psm 11",
+                        timeout=settings.OCR_PAGE_TIMEOUT_SECONDS,
+                    )
+                except pytesseract.TesseractError as exc:
+                    raise RuntimeError(f"Tesseract OCR failed on page {page_number}: {exc}") from exc
+                except RuntimeError as exc:
+                    raise TimeoutError(
+                        f"OCR timed out on page {page_number} after "
+                        f"{settings.OCR_PAGE_TIMEOUT_SECONDS} seconds"
+                    ) from exc
+            pages.append(page_text)
+    finally:
+        document.close()
+
+    text = "\n".join(pages)
+    logger.info(
+        "OCR completed: pages=%s duration_seconds=%.3f language=%s",
+        len(pages),
+        time.monotonic() - started_at,
+        settings.OCR_LANGUAGE,
+    )
+    return text
+
+
+def extract_pdf_details(content: bytes) -> dict[str, str | None]:
+    """Extract stable fields, using bounded local OCR when native text is incomplete."""
+    native_text = _extract_native_text(content)
+    native_details = _parse_pdf_text(native_text)
+    if not _needs_ocr(native_details):
+        return {**native_details, "extraction_method": "native"}
+
+    logger.info("Native PDF extraction was incomplete; invoking local OCR")
+    ocr_text = _ocr_pdf_text(content)
+    if not native_text.strip() and not ocr_text.strip():
+        raise ValueError("The PDF has no extractable or OCR-readable text")
+
+    ocr_details = _parse_pdf_text(ocr_text)
+    merged = {
+        field: native_details[field] or ocr_details[field]
+        for field in ("project_number", "project_name", "infiltration_location", "failure_cause")
+    }
+    merged["extraction_method"] = "hybrid" if native_text.strip() else "ocr"
+    return merged
 
 
 def _location_score(location: str, notes: str) -> float:

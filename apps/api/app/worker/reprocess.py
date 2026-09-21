@@ -17,11 +17,15 @@ logger = logging.getLogger(__name__)
 TERMINAL_STATUSES = ("PENDING_REVIEW", "UNMATCHED", "MATCHED", "FAILED", "QUARANTINED")
 
 
-def _documents(*, document_ids: list[int], statuses: list[str], limit: int | None) -> list[int]:
+def _documents(
+    *, document_ids: list[int], statuses: list[str], error_contains: str | None, limit: int | None
+) -> list[int]:
     with SessionLocal() as db:
         query = select(Document.id).where(Document.status.in_(statuses)).order_by(Document.id)
         if document_ids:
             query = query.where(Document.id.in_(document_ids))
+        if error_contains:
+            query = query.where(Document.processing_error.ilike(f"%{error_contains}%"))
         if limit is not None:
             query = query.limit(limit)
         return list(db.scalars(query))
@@ -37,12 +41,18 @@ def main() -> None:
         help="status to include; repeat to include more than one (default: PENDING_REVIEW and UNMATCHED)",
     )
     parser.add_argument("--document-id", type=int, action="append", default=[], help="only reprocess this document ID; repeatable")
+    parser.add_argument("--error-contains", help="only reprocess documents whose processing error contains this text")
     parser.add_argument("--limit", type=int, help="maximum number of documents to select")
     parser.add_argument("--execute", action="store_true", help="actually process documents; without this flag only list them")
     args = parser.parse_args()
 
     statuses = args.statuses or ["PENDING_REVIEW", "UNMATCHED"]
-    document_ids = _documents(document_ids=args.document_id, statuses=statuses, limit=args.limit)
+    document_ids = _documents(
+        document_ids=args.document_id,
+        statuses=statuses,
+        error_contains=args.error_contains,
+        limit=args.limit,
+    )
     logger.info("Selected %s document(s): %s", len(document_ids), document_ids)
     if not args.execute:
         logger.info("Dry run only. Add --execute to process the selected documents.")

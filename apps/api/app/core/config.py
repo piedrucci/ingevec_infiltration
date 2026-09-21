@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     PRESIGNED_URL_TTL_SECONDS: int = Field(default=3600, ge=60, le=3600)
     MAX_EXCEL_SIZE_BYTES: int = Field(default=26_214_400, ge=1, le=26_214_400)
     MAX_PDF_SIZE_BYTES: int = Field(default=5_242_880, ge=1, le=5_242_880)
+    OCR_LANGUAGE: str = "spa"
+    OCR_DPI: int = Field(default=150, ge=150, le=600)
+    OCR_MAX_PAGES: int = Field(default=10, ge=1, le=100)
+    OCR_PAGE_TIMEOUT_SECONDS: int = Field(default=30, ge=1, le=300)
 
 
 @lru_cache

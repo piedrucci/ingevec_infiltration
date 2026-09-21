@@ -7,6 +7,9 @@ RUN pip wheel --wheel-dir /wheels -r requirements.txt
 FROM python:3.12-slim AS runtime
 WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PYTHONPATH=/app
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y tesseract-ocr tesseract-ocr-spa \
+    && rm -rf /var/lib/apt/lists/*
 RUN useradd --create-home --uid 10001 appuser
 COPY --from=builder /wheels /wheels
 RUN pip install --no-cache-dir /wheels/* && rm -rf /wheels
@@ -15,4 +18,3 @@ COPY apps/api/alembic.ini /app/alembic.ini
 COPY apps/api/migrations /app/migrations
 USER appuser
 EXPOSE 8000
-
