@@ -22,8 +22,6 @@ class Settings(BaseSettings):
     S3_BUCKET: str
     S3_ACCESS_KEY: str
     S3_SECRET_KEY: str
-    GEMINI_API_KEY: str
-    GEMINI_MODEL: str
     OIDC_ISSUER: AnyHttpUrl
     OIDC_AUDIENCE: str
     OIDC_JWKS_URL: AnyHttpUrl

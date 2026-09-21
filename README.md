@@ -9,7 +9,7 @@ Backend para trazabilidad de postventa, importación controlada del Excel y proc
 | development | Neon de desarrollo | API, worker, NATS, Redis, SeaweedFS, Keycloak y Superset |
 | production | Neon de producción | Los mismos servicios en el VPS |
 
-La base de aplicación nunca vive en el VPS. Las credenciales de Neon y Gemini son distintas en cada entorno y se inyectan mediante archivos de entorno no versionados.
+La base de aplicación nunca vive en el VPS. Las credenciales de Neon son distintas en cada entorno y se inyectan mediante archivos de entorno no versionados.
 
 ## Inicio de desarrollo
 

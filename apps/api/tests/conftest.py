@@ -9,8 +9,6 @@ os.environ.update({
     "S3_BUCKET": "test",
     "S3_ACCESS_KEY": "test",
     "S3_SECRET_KEY": "test",
-    "GEMINI_API_KEY": "test",
-    "GEMINI_MODEL": "gemini-test",
     "OIDC_ISSUER": "http://localhost:8080/realms/test",
     "OIDC_AUDIENCE": "capix-api",
     "OIDC_JWKS_URL": "http://localhost:8080/realms/test/protocol/openid-connect/certs",
