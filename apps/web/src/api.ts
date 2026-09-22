@@ -62,6 +62,9 @@ export function getPostventaItems(projectId: string): Promise<PageResponse<Postv
 
 export type PostventaItemSearchOptions = {
   search?: string;
+  projectSearch?: string;
+  projectNameSearch?: string;
+  notesSearch?: string;
   documentStatus?: string;
   reconciliationStatus?: "PENDING" | "RECONCILED";
   hasDocument?: boolean;
@@ -79,6 +82,9 @@ export function searchPostventaItems(options: PostventaItemSearchOptions = {}): 
     sort_direction: options.sortDirection ?? "asc",
   });
   if (options.search?.trim()) query.set("search", options.search.trim());
+  if (options.projectSearch?.trim()) query.set("project_search", options.projectSearch.trim());
+  if (options.projectNameSearch?.trim()) query.set("project_name_search", options.projectNameSearch.trim());
+  if (options.notesSearch?.trim()) query.set("notes_search", options.notesSearch.trim());
   if (options.documentStatus) query.set("document_status", options.documentStatus);
   if (options.reconciliationStatus) query.set("reconciliation_status", options.reconciliationStatus);
   if (options.hasDocument !== undefined) query.set("has_document", String(options.hasDocument));

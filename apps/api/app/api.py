@@ -520,12 +520,17 @@ def list_postventa_items(
     project_id: str | None = Query(default=None, max_length=100),
     project_manager_id: int | None = Query(default=None, ge=1),
     search: str | None = Query(default=None, min_length=1, max_length=100),
+    project_search: str | None = Query(default=None, min_length=1, max_length=100),
+    project_name_search: str | None = Query(default=None, min_length=1, max_length=100),
+    notes_search: str | None = Query(default=None, min_length=1, max_length=100),
     document_status: str | None = Query(default=None, max_length=32),
     reconciliation_status: str | None = Query(default=None, max_length=16),
     has_document: bool | None = Query(default=None),
     unassociated: bool = Query(default=False),
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
+    sort_by: str = Query(default="project_id", max_length=32),
+    sort_direction: str = Query(default="asc", max_length=4),
     _: dict = Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> PostventaItemListResponse:
@@ -543,6 +548,12 @@ def list_postventa_items(
     if search:
         term = f"%{search.strip()}%"
         filters.append(or_(PostventaItem.notes.ilike(term), Project.name.ilike(term), Project.id.ilike(term)))
+    if project_search:
+        filters.append(PostventaItem.project_id.ilike(f"%{project_search.strip()}%"))
+    if project_name_search:
+        filters.append(Project.name.ilike(f"%{project_name_search.strip()}%"))
+    if notes_search:
+        filters.append(PostventaItem.notes.ilike(f"%{notes_search.strip()}%"))
     if document_status:
         filters.append(Document.status == document_status)
     if reconciliation_status:
