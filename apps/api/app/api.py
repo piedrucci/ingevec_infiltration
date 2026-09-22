@@ -703,3 +703,59 @@ def replace_postventa_item_failure_causes(
     db.commit()
     invalidate_dashboard_summary()
     return _postventa_item_detail(db, public_id)
+
+
+@postventa_items_router.delete("/{public_id}/documents/{document_public_id}", response_model=PostventaItemListItem)
+def remove_postventa_item_document(
+    public_id: UUID,
+    document_public_id: UUID,
+    _: dict = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> PostventaItemListItem:
+    """Detach a PDF without deleting its private object or direct reconciliation."""
+    item = db.scalar(select(PostventaItem).where(PostventaItem.public_id == public_id).with_for_update())
+    document = db.scalar(select(Document).where(Document.public_id == document_public_id).with_for_update())
+    if item is None or document is None:
+        raise HTTPException(status_code=404, detail="Postventa item or document not found")
+    association = db.get(DocumentPostventaItem, (document.id, item.id))
+    if association is None:
+        raise HTTPException(status_code=404, detail="The document is not associated with this item")
+
+    source_key = document.object_key
+    db.delete(association)
+    # Causes explicitly assigned from the evaluation page are independent of a
+    # PDF. Causes derived from this PDF cease to apply when it is detached.
+    sourced_causes = db.scalars(
+        select(PostventaItemFailureCause)
+        .where(
+            PostventaItemFailureCause.postventa_item_id == item.id,
+            PostventaItemFailureCause.source_document_id == document.id,
+            PostventaItemFailureCause.assignment_source.in_(("AUTOMATIC", "MANUAL")),
+        )
+    ).all()
+    for cause in sourced_causes:
+        db.delete(cause)
+    db.flush()
+
+    remaining_cause_ids = db.scalars(
+        select(PostventaItemFailureCause.failure_cause_id)
+        .where(PostventaItemFailureCause.postventa_item_id == item.id)
+        .order_by(PostventaItemFailureCause.failure_cause_id)
+    ).all()
+    item.failure_cause_id = remaining_cause_ids[0] if remaining_cause_ids else None
+
+    remaining_document_links = db.scalar(
+        select(func.count()).select_from(DocumentPostventaItem)
+        .where(DocumentPostventaItem.document_id == document.id)
+    ) or 0
+    if remaining_document_links == 0:
+        document.status = "PENDING_REVIEW"
+        _move_document(document, "pending-review")
+    db.commit()
+    if remaining_document_links == 0 and source_key != document.object_key:
+        try:
+            delete_private_object(source_key)
+        except Exception:
+            logger.warning("Could not remove old object after disassociating document_id=%s", document.id)
+    invalidate_dashboard_summary()
+    return _postventa_item_detail(db, public_id)

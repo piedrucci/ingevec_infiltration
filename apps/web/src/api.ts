@@ -84,6 +84,20 @@ export function replacePostventaItemFailureCauses(publicId: string, failureCause
   });
 }
 
+export function removePostventaItemDocument(publicId: string, documentPublicId: string): Promise<PostventaItem> {
+  return accessToken().then(async (token) => {
+    const response = await fetch(apiUrl(`/v1/postventa-items/${publicId}/documents/${documentPublicId}`), {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null) as { detail?: string } | null;
+      throw new Error(payload?.detail || `No fue posible desasociar el PDF (${response.status}).`);
+    }
+    return response.json() as Promise<PostventaItem>;
+  });
+}
+
 export function getPostventaItemsByProjectManager(
   projectManagerId: number,
   options: PostventaItemSearchOptions = {},
