@@ -19,6 +19,7 @@ export function ProjectsPage() {
   const { searchParams, updateUrlParams } = useUrlSearchParams();
   const search = searchParams.get("q") ?? "";
   const selectedProjectId = searchParams.get("project");
+  const itemSearch = searchParams.get("item_q") ?? "";
   const requestedOffset = Number(searchParams.get("offset") ?? "0");
   const offset = Number.isSafeInteger(requestedOffset) && requestedOffset >= 0 ? requestedOffset : 0;
   const requestedSort = searchParams.get("sort") ?? "id";
@@ -30,7 +31,7 @@ export function ProjectsPage() {
   const projects = projectsQuery.data?.items ?? [];
   const totalProjects = projectsQuery.data?.page.total ?? 0;
   const selectedProject = projects.find((project) => project.id === selectedProjectId) ?? null;
-  const itemsQuery = usePostventaItems(selectedProject?.id ?? null);
+  const itemsQuery = usePostventaItems(selectedProject?.id ?? null, itemSearch);
   const items = itemsQuery.data?.items ?? [];
 
   const openDocument = useCallback(async (documentPublicId: string) => {
@@ -109,6 +110,6 @@ export function ProjectsPage() {
     <ErrorMessage error={documentError ?? projectsQuery.error ?? itemsQuery.error} />
     {(projectsQuery.isLoading || itemsQuery.isLoading) && <div className="loading-block"><LoadingIndicator label="Cargando información…" /></div>}
     <section className="card"><div className="section-title"><h2>Proyectos</h2><span>{totalProjects.toLocaleString("es-CL")} proyectos</span></div><DataTable data={projects} columns={projectColumns} sorting={sorting} onSortingChange={(updater) => { const next = typeof updater === "function" ? updater(sorting) : updater; const first = next[0]; updateUrlParams({ sort: first?.id ?? "id", dir: first?.desc ? "desc" : "asc", offset: null }); }} getRowId={(project) => project.id} selectedRowId={selectedProject?.id ?? null} onRowClick={(row) => updateUrlParams({ project: row.original.id })} emptyMessage="No hay proyectos para la búsqueda seleccionada." /><div className="pagination"><button className="secondary" type="button" disabled={!offset || projectsQuery.isFetching} onClick={() => updateUrlParams({ offset: Math.max(0, offset - PAGE_SIZE) })}>Anterior</button><span>{totalProjects ? `${offset + 1}–${Math.min(offset + PAGE_SIZE, totalProjects)} de ${totalProjects}` : "0 proyectos"}</span><button className="secondary" type="button" disabled={offset + PAGE_SIZE >= totalProjects || projectsQuery.isFetching} onClick={() => updateUrlParams({ offset: offset + PAGE_SIZE })}>Siguiente</button></div></section>
-    {selectedProject && <section className="card"><div className="section-title"><div><p className="eyebrow">OBRA {selectedProject.id}</p><h2>{selectedProject.name}</h2></div><span>Recepción: {formatDate(selectedProject.municipal_reception_date)}</span></div><DataTable data={items} columns={itemColumns} getRowId={(item) => item.public_id} emptyMessage="No hay ítems asociados a esta obra." /></section>}
+    {selectedProject && <section className="card"><div className="section-title"><div><p className="eyebrow">OBRA {selectedProject.id}</p><h2>{selectedProject.name}</h2></div><span>Recepción: {formatDate(selectedProject.municipal_reception_date)}</span></div><DataTable data={items} columns={itemColumns} globalFilter={itemSearch} onGlobalFilterChange={(updater) => updateUrlParams({ item_q: typeof updater === "function" ? updater(itemSearch) : updater })} globalFilterLabel="Buscar observación" globalFilterPlaceholder="Ej. humedad, cielo, ventana" getRowId={(item) => item.public_id} emptyMessage="No hay ítems asociados a esta obra." /></section>}
   </>;
 }

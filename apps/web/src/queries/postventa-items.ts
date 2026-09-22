@@ -11,10 +11,10 @@ export const postventaItemQueryKeys = {
   detail: (publicId: string) => [...postventaItemQueryKeys.all, "detail", publicId] as const,
 };
 
-export function postventaItemsQueryOptions(projectId: string) {
+export function postventaItemsQueryOptions(projectId: string, search = "") {
   return queryOptions({
-    queryKey: postventaItemQueryKeys.byProject(projectId),
-    queryFn: () => getPostventaItems(projectId),
+    queryKey: [...postventaItemQueryKeys.byProject(projectId), search],
+    queryFn: () => getPostventaItems(projectId, search),
   });
 }
 
@@ -33,9 +33,9 @@ export function usePostventaItem(publicId: string | undefined) {
   });
 }
 
-export function usePostventaItems(projectId: string | null) {
+export function usePostventaItems(projectId: string | null, search = "") {
   return useQuery({
-    ...postventaItemsQueryOptions(projectId ?? ""),
+    ...postventaItemsQueryOptions(projectId ?? "", search),
     enabled: projectId !== null,
   });
 }

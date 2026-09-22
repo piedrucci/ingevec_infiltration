@@ -2,9 +2,6 @@ import { useSearchParams } from "react-router-dom";
 
 export type EvaluationSearchParams = {
   search: string;
-  projectSearch: string;
-  projectNameSearch: string;
-  notesSearch: string;
   reconciliationStatus: "" | "PENDING" | "RECONCILED";
   documentFilter: "" | "true" | "false";
   offset: number;
@@ -14,9 +11,6 @@ export type EvaluationSearchParams = {
 
 const DEFAULT_PARAMS: EvaluationSearchParams = {
   search: "",
-  projectSearch: "",
-  projectNameSearch: "",
-  notesSearch: "",
   reconciliationStatus: "PENDING",
   documentFilter: "",
   offset: 0,
@@ -41,10 +35,7 @@ export function useEvaluationSearchParams() {
   const { searchParams, updateUrlParams } = useUrlSearchParams();
   const requestedOffset = Number(searchParams.get("offset") ?? "0");
   const params: EvaluationSearchParams = {
-    search: searchParams.get("q") ?? DEFAULT_PARAMS.search,
-    projectSearch: searchParams.get("obra") ?? DEFAULT_PARAMS.projectSearch,
-    projectNameSearch: searchParams.get("proyecto") ?? DEFAULT_PARAMS.projectNameSearch,
-    notesSearch: searchParams.get("observacion") ?? DEFAULT_PARAMS.notesSearch,
+    search: searchParams.get("q") ?? searchParams.get("obra") ?? searchParams.get("proyecto") ?? searchParams.get("observacion") ?? DEFAULT_PARAMS.search,
     reconciliationStatus: searchParams.get("status") === "RECONCILED" ? "RECONCILED" : searchParams.get("status") === "ALL" ? "" : DEFAULT_PARAMS.reconciliationStatus,
     documentFilter: searchParams.get("pdf") === "true" ? "true" : searchParams.get("pdf") === "false" ? "false" : DEFAULT_PARAMS.documentFilter,
     offset: Number.isSafeInteger(requestedOffset) && requestedOffset >= 0 ? requestedOffset : DEFAULT_PARAMS.offset,
@@ -55,9 +46,6 @@ export function useEvaluationSearchParams() {
   const updateParams = (updates: Partial<EvaluationSearchParams>) => {
     const urlUpdates: Record<string, string | number | null> = {};
     if (updates.search !== undefined) urlUpdates.q = updates.search;
-    if (updates.projectSearch !== undefined) urlUpdates.obra = updates.projectSearch;
-    if (updates.projectNameSearch !== undefined) urlUpdates.proyecto = updates.projectNameSearch;
-    if (updates.notesSearch !== undefined) urlUpdates.observacion = updates.notesSearch;
     if (updates.reconciliationStatus !== undefined) urlUpdates.status = updates.reconciliationStatus || "ALL";
     if (updates.documentFilter !== undefined) urlUpdates.pdf = updates.documentFilter;
     if (updates.sortBy !== undefined) urlUpdates.sort = updates.sortBy;
