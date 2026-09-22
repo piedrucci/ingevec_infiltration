@@ -6,7 +6,7 @@ from uuid import UUID
 from botocore.exceptions import ClientError
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 from openpyxl.utils.exceptions import InvalidFileException
-from sqlalchemy import func, or_, select
+from sqlalchemy import case, func, or_, select
 from sqlalchemy.dialects.postgresql import aggregate_order_by
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -177,6 +177,8 @@ def list_documents(
     search: str | None = Query(default=None, min_length=1, max_length=255),
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
+    sort_by: str = Query(default="project_id", max_length=32),
+    sort_direction: str = Query(default="asc", max_length=4),
     _: dict = Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> DocumentListResponse:
@@ -449,6 +451,8 @@ def list_projects(
     search: str | None = Query(default=None, min_length=1, max_length=100),
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
+    sort_by: str = Query(default="id", max_length=32),
+    sort_direction: str = Query(default="asc", max_length=4),
     _: dict = Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> ProjectListResponse:
@@ -458,6 +462,21 @@ def list_projects(
         filters.append(or_(Project.id.ilike(term), Project.name.ilike(term)))
 
     total = db.scalar(select(func.count()).select_from(Project).where(*filters)) or 0
+    sort_columns = {
+        "id": Project.id,
+        "name": Project.name,
+        "typology": Typology.name,
+        "location": Location.name,
+        "supervisor": Supervisor.name,
+        "project_manager": ProjectManager.name,
+        "project_admin": ProjectAdmin.name,
+    }
+    if sort_by not in sort_columns:
+        raise HTTPException(status_code=422, detail="Invalid project sort column")
+    if sort_direction not in {"asc", "desc"}:
+        raise HTTPException(status_code=422, detail="Invalid project sort direction")
+    sort_column = sort_columns[sort_by]
+    sort_order = sort_column.asc() if sort_direction == "asc" else sort_column.desc()
     rows = db.execute(
         select(
             Project,
@@ -473,7 +492,7 @@ def list_projects(
         .outerjoin(ProjectAdmin, ProjectAdmin.id == Project.project_admin_id)
         .outerjoin(ProjectManager, ProjectManager.id == ProjectAdmin.project_manager_id)
         .where(*filters)
-        .order_by(Project.id)
+        .order_by(sort_order, Project.id)
         .limit(limit)
         .offset(offset)
     ).all()
@@ -536,6 +555,19 @@ def list_postventa_items(
     if unassociated:
         filters.append(~document_exists)
 
+    reconciliation_label = case((cause_exists, "RECONCILED"), else_="PENDING")
+    sort_columns = {
+        "project_id": PostventaItem.project_id,
+        "notes": PostventaItem.notes,
+        "reconciliation_status": reconciliation_label,
+    }
+    if sort_by not in sort_columns:
+        raise HTTPException(status_code=422, detail="Invalid postventa item sort column")
+    if sort_direction not in {"asc", "desc"}:
+        raise HTTPException(status_code=422, detail="Invalid postventa item sort direction")
+    sort_column = sort_columns[sort_by]
+    sort_order = sort_column.asc() if sort_direction == "asc" else sort_column.desc()
+
     base = (
         select(PostventaItem)
         .join(Project, Project.id == PostventaItem.project_id)
@@ -566,7 +598,7 @@ def list_postventa_items(
         .outerjoin(DocumentPostventaItem, DocumentPostventaItem.postventa_item_id == PostventaItem.id)
         .outerjoin(Document, Document.id == DocumentPostventaItem.document_id)
         .where(*filters)
-        .order_by(PostventaItem.id)
+        .order_by(sort_order, PostventaItem.id)
         .limit(limit)
         .offset(offset)
     ).all()

@@ -1,21 +1,28 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useCallback, useMemo, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
+import type { ColumnDef, StockFeatures } from "@tanstack/react-table";
 
 import { deleteDocument } from "../../api";
-import type { DocumentStatus } from "../../types";
+import type { Document, DocumentStatus } from "../../types";
 import { DocumentResultIndicator, DocumentStatusBadge, ErrorMessage, LoadingIndicator } from "./components";
 import { documentQueryKeys, useDocuments } from "./queries";
+import { DataTable } from "../../components/DataTable";
+import { useUrlSearchParams } from "../evaluation/useEvaluationSearchParams";
 
 const statuses: Array<[string, string]> = [["", "Todos"], ["QUEUED", "En cola"], ["PROCESSING", "Procesando"], ["MATCHED", "Asociados"], ["PENDING_REVIEW", "Revisión"], ["UNMATCHED", "Sin asociación"], ["FAILED", "Con error"]];
 const pageSizes = [15, 25, 50] as const;
 const dateTime = (value: string) => new Intl.DateTimeFormat("es-CL", { dateStyle: "short", timeStyle: "short" }).format(new Date(value));
 
 export function DocumentsPage() {
-  const [status, setStatus] = useState("");
-  const [search, setSearch] = useState("");
-  const [pageSize, setPageSize] = useState<number>(15);
-  const [offset, setOffset] = useState(0);
+  const location = useLocation();
+  const { searchParams, updateUrlParams } = useUrlSearchParams();
+  const requestedPageSize = Number(searchParams.get("limit") ?? "15");
+  const pageSize = pageSizes.includes(requestedPageSize as (typeof pageSizes)[number]) ? requestedPageSize : 15;
+  const requestedOffset = Number(searchParams.get("offset") ?? "0");
+  const offset = Number.isSafeInteger(requestedOffset) && requestedOffset >= 0 ? requestedOffset : 0;
+  const status = statuses.some(([value]) => value === (searchParams.get("status") ?? "")) ? (searchParams.get("status") ?? "") : "";
+  const search = searchParams.get("q") ?? "";
   const [deletingDocument, setDeletingDocument] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<Error | null>(null);
   const queryClient = useQueryClient();
@@ -26,21 +33,18 @@ export function DocumentsPage() {
   const hasNext = offset + pageSize < total;
 
   const changeStatus = (value: string) => {
-    setStatus(value);
-    setOffset(0);
+    updateUrlParams({ status: value, offset: null });
   };
 
   const changePageSize = (value: number) => {
-    setPageSize(value);
-    setOffset(0);
+    updateUrlParams({ limit: value, offset: null });
   };
 
   const changeSearch = (value: string) => {
-    setSearch(value);
-    setOffset(0);
+    updateUrlParams({ q: value, offset: null });
   };
 
-  const removeDocument = async (publicId: string, filename: string) => {
+  const removeDocument = useCallback(async (publicId: string, filename: string) => {
     if (!window.confirm(`¿Eliminar el documento "${filename}"? Esta acción no se puede deshacer.`)) return;
     setDeleteError(null);
     setDeletingDocument(publicId);
@@ -52,7 +56,49 @@ export function DocumentsPage() {
     } finally {
       setDeletingDocument(null);
     }
-  };
+  }, [queryClient]);
+
+  const documentColumns = useMemo<ColumnDef<StockFeatures, Document, unknown>[]>(() => [
+    {
+      id: "filename",
+      header: "Archivo",
+      enableSorting: false,
+      cell: ({ row }) => <Link to={`/documents/${row.original.public_id}/review?returnTo=${encodeURIComponent(`${location.pathname}${location.search}`)}`}>{row.original.original_filename}</Link>,
+    },
+    {
+      id: "project",
+      header: "Obra",
+      enableSorting: false,
+      cell: ({ row }) => {
+        const projects = row.original.projects ?? [];
+        const detectedProject = row.original.extracted_data?.project_number;
+        return projects.length ? projects.join(", ") : (detectedProject?.match(/^\s*(\d+)/)?.[1] || "-");
+      },
+    },
+    {
+      id: "status",
+      header: "Estado",
+      enableSorting: false,
+      cell: ({ row }) => <DocumentStatusBadge status={row.original.status as DocumentStatus} />,
+    },
+    { accessorKey: "association_count", header: "Asociaciones", enableSorting: false },
+    { accessorKey: "uploaded_at", header: "Fecha de carga", enableSorting: false, cell: ({ getValue }) => dateTime(getValue<string>()) },
+    {
+      id: "result",
+      header: "Resultado",
+      enableSorting: false,
+      cell: ({ row }) => {
+        const result = row.original.processing_error || (row.original.status === "MATCHED" ? "Procesado correctamente" : null);
+        return result ? <DocumentResultIndicator message={result} error={Boolean(row.original.processing_error)} /> : "-";
+      },
+    },
+    {
+      id: "actions",
+      header: "Acciones",
+      enableSorting: false,
+      cell: ({ row }) => <button className="danger document-delete-button" type="button" aria-label={`Eliminar documento ${row.original.original_filename}`} title={`Eliminar ${row.original.original_filename}`} disabled={deletingDocument === row.original.public_id} onClick={() => void removeDocument(row.original.public_id, row.original.original_filename)}>{deletingDocument === row.original.public_id ? <LoadingIndicator label="Eliminando…" compact /> : <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3" /></svg>}</button>,
+    },
+  ], [deletingDocument, location.pathname, location.search, removeDocument]);
 
   return <section className="card">
     <div className="section-title"><div><p className="eyebrow">DOCUMENTOS</p><h2>Historial de cargas</h2></div><Link className="button-link" to="/documents/upload">Cargar PDFs</Link></div>
@@ -64,7 +110,7 @@ export function DocumentsPage() {
     </div>
     <ErrorMessage error={deleteError ?? documentsQuery.error} />
     {documentsQuery.isLoading && <div className="loading-block"><LoadingIndicator label="Cargando documentos…" /></div>}
-    <div className="table-wrap"><table><thead><tr><th>Archivo</th><th>Obra</th><th>Estado</th><th>Asociaciones</th><th>Fecha de carga</th><th>Resultado</th><th>Acciones</th></tr></thead><tbody>{documents.map((document) => { const result = document.processing_error || (document.status === "MATCHED" ? "Procesado correctamente" : null); const projects = document.projects ?? []; const detectedProject = document.extracted_data?.project_number; const obra = projects.length ? projects.join(", ") : (detectedProject?.match(/^\s*(\d+)/)?.[1] || "-"); return <tr key={document.public_id}><td><Link to={`/documents/${document.public_id}/review`}>{document.original_filename}</Link></td><td>{obra}</td><td><DocumentStatusBadge status={document.status as DocumentStatus} /></td><td>{document.association_count}</td><td>{dateTime(document.uploaded_at)}</td><td>{result ? <DocumentResultIndicator message={result} error={Boolean(document.processing_error)} /> : "-"}</td><td><button className="danger document-delete-button" type="button" aria-label={`Eliminar documento ${document.original_filename}`} title={`Eliminar ${document.original_filename}`} disabled={deletingDocument === document.public_id} onClick={() => void removeDocument(document.public_id, document.original_filename)}>{deletingDocument === document.public_id ? <LoadingIndicator label="Eliminando…" compact /> : <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3" /></svg>}</button></td></tr>; })}{!documentsQuery.isLoading && documents.length === 0 && <tr><td colSpan={7}>No hay documentos para este filtro.</td></tr>}</tbody></table></div>
-    <div className="pagination"><button className="secondary" type="button" disabled={!hasPrevious || documentsQuery.isFetching} onClick={() => setOffset((value) => Math.max(0, value - pageSize))}>Anterior</button><span>{total ? `${offset + 1}–${Math.min(offset + pageSize, total)} de ${total}` : "0 documentos"}</span><button className="secondary" type="button" disabled={!hasNext || documentsQuery.isFetching} onClick={() => setOffset((value) => value + pageSize)}>Siguiente</button></div>
+    <DataTable data={documents} columns={documentColumns} getRowId={(document) => document.public_id} emptyMessage="No hay documentos para este filtro." />
+    <div className="pagination"><button className="secondary" type="button" disabled={!hasPrevious || documentsQuery.isFetching} onClick={() => updateUrlParams({ offset: Math.max(0, offset - pageSize) })}>Anterior</button><span>{total ? `${offset + 1}–${Math.min(offset + pageSize, total)} de ${total}` : "0 documentos"}</span><button className="secondary" type="button" disabled={!hasNext || documentsQuery.isFetching} onClick={() => updateUrlParams({ offset: offset + pageSize })}>Siguiente</button></div>
   </section>;
 }

@@ -32,9 +32,22 @@ async function requestBlob(path: string): Promise<Blob> {
   return response.blob();
 }
 
-export function getProjects(search = ""): Promise<PageResponse<Project>> {
-  const query = new URLSearchParams({ limit: "100", offset: "0" });
-  if (search.trim()) query.set("search", search.trim());
+export type ProjectSearchOptions = {
+  search?: string;
+  limit?: number;
+  offset?: number;
+  sortBy?: string;
+  sortDirection?: "asc" | "desc";
+};
+
+export function getProjects(options: ProjectSearchOptions = {}): Promise<PageResponse<Project>> {
+  const query = new URLSearchParams({
+    limit: String(options.limit ?? 50),
+    offset: String(options.offset ?? 0),
+    sort_by: options.sortBy ?? "id",
+    sort_direction: options.sortDirection ?? "asc",
+  });
+  if (options.search?.trim()) query.set("search", options.search.trim());
   return request<PageResponse<Project>>(`/v1/projects?${query}`);
 }
 
@@ -54,10 +67,17 @@ export type PostventaItemSearchOptions = {
   hasDocument?: boolean;
   limit?: number;
   offset?: number;
+  sortBy?: "project_id" | "notes" | "reconciliation_status";
+  sortDirection?: "asc" | "desc";
 };
 
 export function searchPostventaItems(options: PostventaItemSearchOptions = {}): Promise<PageResponse<PostventaItem>> {
-  const query = new URLSearchParams({ limit: String(options.limit ?? 50), offset: String(options.offset ?? 0) });
+  const query = new URLSearchParams({
+    limit: String(options.limit ?? 50),
+    offset: String(options.offset ?? 0),
+    sort_by: options.sortBy ?? "project_id",
+    sort_direction: options.sortDirection ?? "asc",
+  });
   if (options.search?.trim()) query.set("search", options.search.trim());
   if (options.documentStatus) query.set("document_status", options.documentStatus);
   if (options.reconciliationStatus) query.set("reconciliation_status", options.reconciliationStatus);
