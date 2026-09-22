@@ -359,8 +359,8 @@ def create_manual_associations(
     document = db.scalar(select(Document).where(Document.public_id == document_public_id).with_for_update())
     if document is None:
         raise HTTPException(status_code=404, detail="Document not found")
-    if document.status not in {"PENDING_REVIEW", "UNMATCHED"}:
-        raise HTTPException(status_code=409, detail="Document is not awaiting manual review")
+    if document.status not in {"PENDING_REVIEW", "UNMATCHED", "MATCHED"}:
+        raise HTTPException(status_code=409, detail="Document is not available for manual association")
     cause_codes = list(dict.fromkeys(payload.failure_cause_codes))
     causes = db.scalars(select(FailureCause).where(FailureCause.code.in_(cause_codes), FailureCause.is_active.is_(True))).all()
     causes_by_code = {cause.code: cause for cause in causes}
@@ -403,10 +403,11 @@ def create_manual_associations(
     except IntegrityError as exc:
         db.rollback()
         raise HTTPException(status_code=409, detail="An item was associated concurrently") from exc
-    try:
-        delete_private_object(source_key)
-    except Exception:
-        pass
+    if source_key != document.object_key:
+        try:
+            delete_private_object(source_key)
+        except Exception:
+            pass
     invalidate_dashboard_summary()
     return get_document_detail(document_public_id, db=db)
 

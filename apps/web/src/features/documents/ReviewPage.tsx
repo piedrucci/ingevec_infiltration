@@ -18,7 +18,7 @@ export function ReviewPage() {
   const queryClient = useQueryClient();
   const documentQuery = useDocument(publicId);
   const document = documentQuery.data;
-  const canReview = document?.status === "PENDING_REVIEW" || document?.status === "UNMATCHED";
+  const canReview = document?.status === "PENDING_REVIEW" || document?.status === "UNMATCHED" || document?.status === "MATCHED";
   const candidatesQuery = useDocumentCandidates(publicId, canReview);
   const causesQuery = useFailureCauses();
   const categoriesQuery = useFailureCauseCategories();
