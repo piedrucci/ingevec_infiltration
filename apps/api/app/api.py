@@ -282,6 +282,7 @@ def get_document_detail(document_public_id: UUID, _: dict = Depends(require_admi
         .where(DocumentPostventaItem.document_id == document.id)
         .order_by(PostventaItem.id)
     ).all()
+    causes_by_item = _failure_cause_summaries(db, [postventa_item.id for _, postventa_item, _ in rows])
     item = _document_list_item(document, len(rows))
     return DocumentDetail(**item.model_dump(), associations=[
         DocumentAssociationItem(
@@ -293,6 +294,7 @@ def get_document_detail(document_public_id: UUID, _: dict = Depends(require_admi
             association_source=association.association_source,
             confidence=float(association.confidence) if association.confidence is not None else None,
             rationale=association.rationale,
+            failure_causes=causes_by_item.get(postventa_item.id, []),
         ) for association, postventa_item, project in rows
     ])
 

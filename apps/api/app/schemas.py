@@ -117,6 +117,7 @@ class DocumentAssociationItem(BaseModel):
     association_source: str
     confidence: float | None
     rationale: str | None
+    failure_causes: list[FailureCauseSummary] = Field(default_factory=list)
 
 
 class DocumentDetail(DocumentListItem):

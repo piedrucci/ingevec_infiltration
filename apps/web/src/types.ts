@@ -91,6 +91,7 @@ export type DocumentAssociation = {
   association_source: "AUTOMATIC" | "MANUAL";
   confidence: number | null;
   rationale: string | null;
+  failure_causes: { code: string; display_name_es: string; category_code: string; category_name_es: string }[];
 };
 
 export type DocumentDetail = Document & { associations: DocumentAssociation[] };
