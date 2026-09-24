@@ -203,6 +203,21 @@ def list_documents(
         .outerjoin(Project, Project.id == PostventaItem.project_id)
         .where(*filters)
     ) or 0
+    sort_columns = {
+        "document_name": func.lower(Document.original_filename),
+        "obra": func.coalesce(
+            func.min(Project.id),
+            func.substring(Document.extracted_data["project_number"].astext, r"^\s*(\d+)"),
+        ),
+        "project_id": func.min(Project.id),
+        "status": Document.status,
+    }
+    if sort_by not in sort_columns:
+        raise HTTPException(status_code=422, detail="Invalid document sort column")
+    if sort_direction not in {"asc", "desc"}:
+        raise HTTPException(status_code=422, detail="Invalid document sort direction")
+    sort_column = sort_columns[sort_by]
+    sort_order = sort_column.asc() if sort_direction == "asc" else sort_column.desc()
     rows = db.execute(
         select(
             Document,
@@ -214,7 +229,7 @@ def list_documents(
         .outerjoin(Project, Project.id == PostventaItem.project_id)
         .where(*filters)
         .group_by(Document.id)
-        .order_by(func.min(Project.id).nulls_last(), Document.uploaded_at.desc(), Document.id.desc())
+        .order_by(sort_order.nulls_last(), Document.uploaded_at.desc(), Document.id.desc())
         .limit(limit)
         .offset(offset)
     ).all()

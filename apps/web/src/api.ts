@@ -160,13 +160,15 @@ export function uploadDocument(file: File): Promise<DocumentSummary> {
   });
 }
 
-export function getDocuments(status = "", options: { search?: string; limit?: number; offset?: number } = {}): Promise<PageResponse<Document>> {
+export function getDocuments(status = "", options: { search?: string; limit?: number; offset?: number; sortBy?: string; sortDirection?: "asc" | "desc" } = {}): Promise<PageResponse<Document>> {
   const query = new URLSearchParams({
     limit: String(options.limit ?? 15),
     offset: String(options.offset ?? 0),
   });
   if (status) query.set("document_status", status);
   if (options.search?.trim()) query.set("search", options.search.trim());
+  if (options.sortBy) query.set("sort_by", options.sortBy);
+  if (options.sortDirection) query.set("sort_direction", options.sortDirection);
   return request<PageResponse<Document>>(`/v1/documents?${query}`);
 }
 

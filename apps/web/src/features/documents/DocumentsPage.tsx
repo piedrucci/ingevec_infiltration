@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import type { ColumnDef, StockFeatures } from "@tanstack/react-table";
+import type { ColumnDef, SortingState, StockFeatures } from "@tanstack/react-table";
 
 import { deleteDocument } from "../../api";
 import type { Document, DocumentStatus } from "../../types";
@@ -12,6 +12,7 @@ import { useUrlSearchParams } from "../evaluation/useEvaluationSearchParams";
 
 const statuses: Array<[string, string]> = [["", "Todos"], ["QUEUED", "En cola"], ["PROCESSING", "Procesando"], ["MATCHED", "Asociados"], ["PENDING_REVIEW", "Revisión"], ["UNMATCHED", "Sin asociación"], ["FAILED", "Con error"]];
 const pageSizes = [15, 25, 50] as const;
+const sortableColumns = ["document_name", "obra", "status"] as const;
 const dateTime = (value: string) => new Intl.DateTimeFormat("es-CL", { dateStyle: "short", timeStyle: "short" }).format(new Date(value));
 
 export function DocumentsPage() {
@@ -23,10 +24,14 @@ export function DocumentsPage() {
   const offset = Number.isSafeInteger(requestedOffset) && requestedOffset >= 0 ? requestedOffset : 0;
   const status = statuses.some(([value]) => value === (searchParams.get("status") ?? "")) ? (searchParams.get("status") ?? "") : "";
   const search = searchParams.get("q") ?? "";
+  const requestedSortBy = searchParams.get("sort") ?? "";
+  const sortBy = sortableColumns.find((column) => column === requestedSortBy);
+  const sortDirection = searchParams.get("dir") === "desc" ? "desc" : "asc";
+  const sorting: SortingState = sortBy ? [{ id: sortBy, desc: sortDirection === "desc" }] : [];
   const [deletingDocument, setDeletingDocument] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<Error | null>(null);
   const queryClient = useQueryClient();
-  const documentsQuery = useDocuments(status, search, pageSize, offset);
+  const documentsQuery = useDocuments(status, search, pageSize, offset, sortBy ?? "project_id", sortDirection);
   const documents = documentsQuery.data?.items ?? [];
   const total = documentsQuery.data?.page.total ?? 0;
   const hasPrevious = offset > 0;
@@ -60,15 +65,15 @@ export function DocumentsPage() {
 
   const documentColumns = useMemo<ColumnDef<StockFeatures, Document, unknown>[]>(() => [
     {
-      id: "filename",
+      id: "document_name",
       header: "Archivo",
-      enableSorting: false,
+      accessorFn: (document) => document.original_filename,
       cell: ({ row }) => <Link to={`/documents/${row.original.public_id}/review?returnTo=${encodeURIComponent(`${location.pathname}${location.search}`)}`}>{row.original.original_filename}</Link>,
     },
     {
-      id: "project",
+      id: "obra",
       header: "Obra",
-      enableSorting: false,
+      accessorFn: (document) => document.projects?.[0] ?? document.extracted_data?.project_number ?? "",
       cell: ({ row }) => {
         const projects = row.original.projects ?? [];
         const detectedProject = row.original.extracted_data?.project_number;
@@ -78,7 +83,7 @@ export function DocumentsPage() {
     {
       id: "status",
       header: "Estado",
-      enableSorting: false,
+      accessorFn: (document) => document.status,
       cell: ({ row }) => <DocumentStatusBadge status={row.original.status as DocumentStatus} />,
     },
     { accessorKey: "association_count", header: "Asociaciones", enableSorting: false },
@@ -110,7 +115,7 @@ export function DocumentsPage() {
     </div>
     <ErrorMessage error={deleteError ?? documentsQuery.error} />
     {documentsQuery.isLoading && <div className="loading-block"><LoadingIndicator label="Cargando documentos…" /></div>}
-    <DataTable data={documents} columns={documentColumns} getRowId={(document) => document.public_id} emptyMessage="No hay documentos para este filtro." />
+    <DataTable data={documents} columns={documentColumns} sorting={sorting} onSortingChange={(updater) => { const next = typeof updater === "function" ? updater(sorting) : updater; const first = next[0]; updateUrlParams({ sort: first?.id ?? null, dir: first?.desc ? "desc" : "asc", offset: null }); }} getRowId={(document) => document.public_id} emptyMessage="No hay documentos para este filtro." />
     <div className="pagination"><button className="secondary" type="button" disabled={!hasPrevious || documentsQuery.isFetching} onClick={() => updateUrlParams({ offset: Math.max(0, offset - pageSize) })}>Anterior</button><span>{total ? `${offset + 1}–${Math.min(offset + pageSize, total)} de ${total}` : "0 documentos"}</span><button className="secondary" type="button" disabled={!hasNext || documentsQuery.isFetching} onClick={() => updateUrlParams({ offset: offset + pageSize })}>Siguiente</button></div>
   </section>;
 }

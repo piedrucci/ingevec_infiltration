@@ -5,7 +5,7 @@ import type { Document } from "../../types";
 
 export const documentQueryKeys = {
   all: ["documents"] as const,
-  list: (status: string, search: string, limit: number, offset: number) => [...documentQueryKeys.all, "list", status, search, limit, offset] as const,
+  list: (status: string, search: string, limit: number, offset: number, sortBy: string, sortDirection: "asc" | "desc") => [...documentQueryKeys.all, "list", status, search, limit, offset, sortBy, sortDirection] as const,
   detail: (publicId: string) => [...documentQueryKeys.all, "detail", publicId] as const,
   candidates: (publicId: string) => [...documentQueryKeys.all, "candidates", publicId] as const,
   failureCauses: () => [...documentQueryKeys.all, "failure-causes"] as const,
@@ -14,9 +14,9 @@ export const documentQueryKeys = {
 
 const isActive = (document: Document) => document.status === "QUEUED" || document.status === "PROCESSING" || document.status === "UPLOADING";
 
-export function useDocuments(status = "", search = "", limit = 15, offset = 0) {
+export function useDocuments(status = "", search = "", limit = 15, offset = 0, sortBy = "project_id", sortDirection: "asc" | "desc" = "asc") {
   return useQuery({
-    ...queryOptions({ queryKey: documentQueryKeys.list(status, search, limit, offset), queryFn: () => getDocuments(status, { search, limit, offset }) }),
+    ...queryOptions({ queryKey: documentQueryKeys.list(status, search, limit, offset, sortBy, sortDirection), queryFn: () => getDocuments(status, { search, limit, offset, sortBy, sortDirection }) }),
     refetchInterval: (query) => query.state.data?.items.some(isActive) ? 3000 : false,
   });
 }
