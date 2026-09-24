@@ -1,4 +1,6 @@
 import type { DocumentStatus } from "../../types";
+import { Badge } from "../../components/ui/badge";
+import { Alert, AlertDescription } from "../../components/ui/alert";
 
 const labels: Record<DocumentStatus, string> = {
   UPLOADING: "Cargando", QUEUED: "En cola", PROCESSING: "Procesando", MATCHED: "Asociado",
@@ -6,11 +8,16 @@ const labels: Record<DocumentStatus, string> = {
 };
 
 export function DocumentStatusBadge({ status }: { status: DocumentStatus }) {
-  return <span className={`status status-${status.toLowerCase()}`}>{labels[status]}</span>;
+  const variant = status === "MATCHED" ? "success" : status === "FAILED" || status === "QUARANTINED" ? "destructive" : status === "PENDING_REVIEW" || status === "UNMATCHED" ? "warning" : "info";
+  return <Badge variant={variant}>{labels[status]}</Badge>;
+}
+
+export function ReconciliationBadge({ reconciled }: { reconciled: boolean }) {
+  return <Badge variant={reconciled ? "success" : "warning"}>{reconciled ? "Conciliado" : "Pendiente"}</Badge>;
 }
 
 export function ErrorMessage({ error }: { error: unknown }) {
-  return error ? <p className="error" role="alert">{error instanceof Error ? error.message : "Ocurrió un error inesperado."}</p> : null;
+  return error ? <Alert variant="destructive" className="mx-5 mb-4 w-auto"><AlertDescription>{error instanceof Error ? error.message : "Ocurrió un error inesperado."}</AlertDescription></Alert> : null;
 }
 
 export function LoadingIndicator({ label = "Cargando…", compact = false }: { label?: string; compact?: boolean }) {

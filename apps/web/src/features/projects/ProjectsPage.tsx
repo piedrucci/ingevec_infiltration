@@ -6,9 +6,12 @@ import { getDocumentPdf } from "../../api";
 import { usePostventaItems } from "../../queries/postventa-items";
 import { useProjects } from "../../queries/projects";
 import type { PostventaItem, Project } from "../../types";
-import { ErrorMessage, LoadingIndicator } from "../documents/components";
+import { ErrorMessage, LoadingIndicator, ReconciliationBadge } from "../documents/components";
 import { useUrlSearchParams } from "../evaluation/useEvaluationSearchParams";
 import { DataTable } from "../../components/DataTable";
+import { Button } from "../../components/ui/button";
+import { Badge } from "../../components/ui/badge";
+import { Input } from "../../components/ui/input";
 
 const formatDate = (value: string | null) => value ? new Intl.DateTimeFormat("es-CL").format(new Date(`${value}T00:00:00`)) : "-";
 const PAGE_SIZE = 50;
@@ -72,7 +75,7 @@ export function ProjectsPage() {
       header: "Causas",
       enableSorting: false,
       cell: ({ row }) => row.original.failure_causes.length
-        ? row.original.failure_causes.map((cause) => <span className="cause-tag" key={cause.code}>{cause.display_name_es}</span>)
+        ? row.original.failure_causes.map((cause) => <span className="mr-1 mb-1 inline-block" key={cause.code}><Badge variant="secondary">{cause.display_name_es}</Badge></span>)
         : "Sin causa",
     },
     {
@@ -81,7 +84,7 @@ export function ProjectsPage() {
       enableSorting: false,
       cell: ({ row }) => {
         const reconciled = row.original.reconciliation_status === "RECONCILED";
-        return <span className={`reconciliation-status ${reconciled ? "reconciliation-status-reconciled" : "reconciliation-status-pending"}`}>{reconciled ? "Conciliado" : "Pendiente"}</span>;
+        return <ReconciliationBadge reconciled={reconciled} />;
       },
     },
     {
@@ -91,7 +94,7 @@ export function ProjectsPage() {
       cell: ({ row }) => {
         const document = row.original.document;
         if (!document) return "Sin documento";
-        return <button className="document-link document-icon-link" type="button" aria-label={`Abrir documento ${document.original_filename}`} title={`${document.original_filename} · ${document.status}`} disabled={openingDocument === document.public_id} onClick={() => void openDocument(document.public_id)}>{openingDocument === document.public_id ? <LoadingIndicator label="Abriendo…" compact /> : <svg aria-hidden="true" viewBox="0 0 32 36" focusable="false"><path d="M4 1h16l8 8v26H4z" /><path d="M20 1v9h8" /><text x="7" y="26">PDF</text></svg>}</button>;
+        return <Button variant="ghost" size="icon" className="document-link document-icon-link" aria-label={`Abrir documento ${document.original_filename}`} title={`${document.original_filename} · ${document.status}`} disabled={openingDocument === document.public_id} onClick={() => void openDocument(document.public_id)}>{openingDocument === document.public_id ? <LoadingIndicator label="Abriendo…" compact /> : <svg aria-hidden="true" viewBox="0 0 32 36" focusable="false"><path d="M4 1h16l8 8v26H4z" /><path d="M20 1v9h8" /><text x="7" y="26">PDF</text></svg>}</Button>;
       },
     },
     {
@@ -106,10 +109,10 @@ export function ProjectsPage() {
     },
   ], [location.pathname, location.search, openingDocument, openDocument]);
   return <>
-    <section className="toolbar"><form onSubmit={submitSearch}><label htmlFor="search">Buscar proyecto</label><input id="search" value={search} onChange={(event) => updateUrlParams({ q: event.target.value, project: null })} placeholder="Ej. 712 o PAM" /><button type="submit">Buscar</button></form></section>
+    <section className="toolbar"><form onSubmit={submitSearch}><label htmlFor="search">Buscar proyecto</label><Input id="search" value={search} onChange={(event) => updateUrlParams({ q: event.target.value, project: null })} placeholder="Ej. 712 o PAM" /><Button type="submit">Buscar</Button></form></section>
     <ErrorMessage error={documentError ?? projectsQuery.error ?? itemsQuery.error} />
     {(projectsQuery.isLoading || itemsQuery.isLoading) && <div className="loading-block"><LoadingIndicator label="Cargando información…" /></div>}
-    <section className="card"><div className="section-title"><h2>Proyectos</h2><span>{totalProjects.toLocaleString("es-CL")} proyectos</span></div><DataTable data={projects} columns={projectColumns} sorting={sorting} onSortingChange={(updater) => { const next = typeof updater === "function" ? updater(sorting) : updater; const first = next[0]; updateUrlParams({ sort: first?.id ?? "id", dir: first?.desc ? "desc" : "asc", offset: null }); }} getRowId={(project) => project.id} selectedRowId={selectedProject?.id ?? null} onRowClick={(row) => updateUrlParams({ project: row.original.id })} emptyMessage="No hay proyectos para la búsqueda seleccionada." /><div className="pagination"><button className="secondary" type="button" disabled={!offset || projectsQuery.isFetching} onClick={() => updateUrlParams({ offset: Math.max(0, offset - PAGE_SIZE) })}>Anterior</button><span>{totalProjects ? `${offset + 1}–${Math.min(offset + PAGE_SIZE, totalProjects)} de ${totalProjects}` : "0 proyectos"}</span><button className="secondary" type="button" disabled={offset + PAGE_SIZE >= totalProjects || projectsQuery.isFetching} onClick={() => updateUrlParams({ offset: offset + PAGE_SIZE })}>Siguiente</button></div></section>
+    <section className="card"><div className="section-title"><h2>Proyectos</h2><span>{totalProjects.toLocaleString("es-CL")} proyectos</span></div><DataTable data={projects} columns={projectColumns} sorting={sorting} onSortingChange={(updater) => { const next = typeof updater === "function" ? updater(sorting) : updater; const first = next[0]; updateUrlParams({ sort: first?.id ?? "id", dir: first?.desc ? "desc" : "asc", offset: null }); }} getRowId={(project) => project.id} selectedRowId={selectedProject?.id ?? null} onRowClick={(row) => updateUrlParams({ project: row.original.id })} emptyMessage="No hay proyectos para la búsqueda seleccionada." /><div className="pagination"><Button variant="secondary" size="sm" disabled={!offset || projectsQuery.isFetching} onClick={() => updateUrlParams({ offset: Math.max(0, offset - PAGE_SIZE) })}>Anterior</Button><span>{totalProjects ? `${offset + 1}–${Math.min(offset + PAGE_SIZE, totalProjects)} de ${totalProjects}` : "0 proyectos"}</span><Button variant="secondary" size="sm" disabled={offset + PAGE_SIZE >= totalProjects || projectsQuery.isFetching} onClick={() => updateUrlParams({ offset: offset + PAGE_SIZE })}>Siguiente</Button></div></section>
     {selectedProject && <section className="card"><div className="section-title"><div><p className="eyebrow">OBRA {selectedProject.id}</p><h2>{selectedProject.name}</h2></div><span>Recepción: {formatDate(selectedProject.municipal_reception_date)}</span></div><DataTable data={items} columns={itemColumns} globalFilter={itemSearch} onGlobalFilterChange={(updater) => updateUrlParams({ item_q: typeof updater === "function" ? updater(itemSearch) : updater })} globalFilterLabel="Buscar observación" globalFilterPlaceholder="Ej. humedad, cielo, ventana" getRowId={(item) => item.public_id} emptyMessage="No hay ítems asociados a esta obra." /></section>}
   </>;
 }

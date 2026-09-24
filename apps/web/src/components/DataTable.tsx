@@ -11,6 +11,8 @@ import {
   type ReactTable,
   useTable,
 } from "@tanstack/react-table";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
 
 type DataTableProps<TData extends Record<string, any>> = {
   data: TData[];
@@ -47,8 +49,8 @@ export function DataTable<TData extends Record<string, any>>({ data, columns, so
     getRowId,
   });
 
-  return <>{onGlobalFilterChange && <div className="table-global-filter"><label>{globalFilterLabel}<input value={globalFilter} placeholder={globalFilterPlaceholder} onChange={(event) => table.setGlobalFilter(event.target.value)} /></label></div>}<div className="table-wrap"><table><thead>{table.getHeaderGroups().map((headerGroup) => <Fragment key={headerGroup.id}><tr>{headerGroup.headers.map((header) => {
+  return <>{onGlobalFilterChange && <div className="table-global-filter"><label>{globalFilterLabel}<Input value={globalFilter} placeholder={globalFilterPlaceholder} onChange={(event) => table.setGlobalFilter(event.target.value)} /></label></div>}<div className="table-wrap"><table><thead>{table.getHeaderGroups().map((headerGroup) => <Fragment key={headerGroup.id}><tr>{headerGroup.headers.map((header) => {
      const label = sortLabel(table, header.column.id);
-     return <th key={header.id} aria-sort={header.column.getIsSorted() === "asc" ? "ascending" : header.column.getIsSorted() === "desc" ? "descending" : "none"}>{header.isPlaceholder ? null : header.column.getCanSort() ? <button className="table-sort-button" type="button" onClick={header.column.getToggleSortingHandler()} title={`Ordenar${label ?? ""}`}>{flexRender(header.column.columnDef.header, header.getContext())}<span aria-hidden="true">{header.column.getIsSorted() === "asc" ? " ↑" : header.column.getIsSorted() === "desc" ? " ↓" : " ↕"}</span></button> : flexRender(header.column.columnDef.header, header.getContext())}</th>;
+     return <th key={header.id} aria-sort={header.column.getIsSorted() === "asc" ? "ascending" : header.column.getIsSorted() === "desc" ? "descending" : "none"}>{header.isPlaceholder ? null : header.column.getCanSort() ? <Button variant="ghost" size="sm" className="table-sort-button" onClick={header.column.getToggleSortingHandler()} title={`Ordenar${label ?? ""}`}>{flexRender(header.column.columnDef.header, header.getContext())}<span aria-hidden="true">{header.column.getIsSorted() === "asc" ? " ↑" : header.column.getIsSorted() === "desc" ? " ↓" : " ↕"}</span></Button> : flexRender(header.column.columnDef.header, header.getContext())}</th>;
    })}</tr></Fragment>)}</thead><tbody>{table.getRowModel().rows.map((row) => <tr key={row.id} className={selectedRowId === row.id ? "selected" : ""} onClick={() => onRowClick?.(row)}>{row.getVisibleCells().map((cell) => <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>)}</tr>)}{!table.getRowModel().rows.length && <tr><td colSpan={columns.length}>{emptyMessage}</td></tr>}</tbody></table></div></>;
 }

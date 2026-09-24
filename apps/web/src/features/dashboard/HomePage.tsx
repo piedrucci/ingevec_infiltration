@@ -16,14 +16,14 @@ function BreakdownCard({ title, rows, total }: { title: string; rows: DashboardB
   return <section className="card breakdown-card"><div className="section-title"><h2>{title}</h2><span>{rows.length} grupos</span></div>
     {rows.length ? <ul className="breakdown-list">{rows.map((row) => {
       const percent = total ? (row.count / total) * 100 : 0;
-      return <li key={row.name}><div><span title={row.name}>{row.name}</span><strong>{row.count.toLocaleString("es-CL")} <small>({percent.toFixed(1)}%)</small></strong></div><div className="progress-track"><span style={{ width: `${percent}%` }} /></div></li>;
+      return <li key={row.name}><div><span title={row.name}>{row.name}</span><strong>{row.count.toLocaleString("es-CL")} <small>({percent.toFixed(1)}%)</small></strong></div><div className="progress-track">{percent > 0 && <span style={{ width: `${percent}%` }} />}</div></li>;
     })}</ul> : <p className="empty-state">Sin datos disponibles.</p>}
   </section>;
 }
 
 function ProjectManagerProgressCard({ rows }: { rows: DashboardAssociationBreakdown[] }) {
   return <section className="card project-manager-progress"><div className="section-title"><div><h2>Avance por gerente de proyecto</h2><p className="muted">Ítems conciliados mediante una o más causas</p></div><span>{rows.length} gerentes</span></div>
-    {rows.length ? <div className="table-wrap"><table><thead><tr><th>Gerente de proyecto</th><th>Ítems</th><th>Conciliados</th><th>Pendientes</th><th>Avance</th><th>Con PDF</th></tr></thead><tbody>{rows.map((row) => <tr key={row.project_manager_id ?? "unassigned"}><td>{row.project_manager_id !== null ? <Link className="manager-link" to={`/project-managers/${row.project_manager_id}/items`}>{row.name}</Link> : row.name}</td><td>{row.items.toLocaleString("es-CL")}</td><td>{row.reconciled_items.toLocaleString("es-CL")}</td><td>{row.pending_reconciliation_items.toLocaleString("es-CL")}</td><td className="progress-cell"><div><strong>{(row.reconciliation_rate * 100).toFixed(1)}%</strong><div className="progress-track"><span style={{ width: `${row.reconciliation_rate * 100}%` }} /></div></div></td><td>{row.associated_items.toLocaleString("es-CL")}</td></tr>)}</tbody></table></div> : <p className="empty-state">Sin datos disponibles.</p>}
+    {rows.length ? <div className="table-wrap"><table><thead><tr><th>Gerente de proyecto</th><th>Ítems</th><th>Conciliados</th><th>Pendientes</th><th>Avance</th><th>Con PDF</th></tr></thead><tbody>{rows.map((row) => <tr key={row.project_manager_id ?? "unassigned"}><td>{row.project_manager_id !== null ? <Link className="manager-link" to={`/project-managers/${row.project_manager_id}/items`}>{row.name}</Link> : row.name}</td><td>{row.items.toLocaleString("es-CL")}</td><td>{row.reconciled_items.toLocaleString("es-CL")}</td><td>{row.pending_reconciliation_items.toLocaleString("es-CL")}</td><td className="progress-cell"><div><strong>{(row.reconciliation_rate * 100).toFixed(1)}%</strong><div className="progress-track">{row.reconciliation_rate > 0 && <span style={{ width: `${row.reconciliation_rate * 100}%` }} />}</div></div></td><td>{row.associated_items.toLocaleString("es-CL")}</td></tr>)}</tbody></table></div> : <p className="empty-state">Sin datos disponibles.</p>}
   </section>;
 }
 

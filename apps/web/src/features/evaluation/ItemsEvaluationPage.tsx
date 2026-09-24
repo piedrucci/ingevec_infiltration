@@ -4,9 +4,13 @@ import type { ColumnDef, SortingState, StockFeatures } from "@tanstack/react-tab
 
 import { useEvaluationItems } from "../../queries/postventa-items";
 import type { PostventaItem } from "../../types";
-import { ErrorMessage, LoadingIndicator } from "../documents/components";
+import { ErrorMessage, LoadingIndicator, ReconciliationBadge } from "../documents/components";
 import { useEvaluationSearchParams } from "./useEvaluationSearchParams";
 import { DataTable } from "../../components/DataTable";
+import { Button } from "../../components/ui/button";
+import { Badge } from "../../components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
+import { Input } from "../../components/ui/input";
 
 const PAGE_SIZE = 50;
 
@@ -34,7 +38,7 @@ export function ItemsEvaluationPage() {
       header: "Causas",
       enableSorting: false,
       cell: ({ row }) => row.original.failure_causes.length
-        ? row.original.failure_causes.map((cause) => <span className="cause-tag" key={cause.code}>{cause.display_name_es}</span>)
+        ? row.original.failure_causes.map((cause) => <span className="mr-1 mb-1 inline-block" key={cause.code}><Badge variant="secondary">{cause.display_name_es}</Badge></span>)
         : "Sin causas",
     },
     {
@@ -42,7 +46,7 @@ export function ItemsEvaluationPage() {
       header: "Estado",
       cell: ({ row }) => {
         const reconciled = row.original.reconciliation_status === "RECONCILED";
-        return <span className={`reconciliation-status ${reconciled ? "reconciliation-status-reconciled" : "reconciliation-status-pending"}`}>{reconciled ? "Conciliado" : "Pendiente"}</span>;
+        return <ReconciliationBadge reconciled={reconciled} />;
       },
     },
     { id: "pdf", header: "PDF", enableSorting: false, cell: ({ row }) => row.original.has_document ? "Sí" : "No" },
@@ -63,13 +67,14 @@ export function ItemsEvaluationPage() {
     <section className="dashboard-heading"><div><p className="eyebrow">EVALUACIÓN MANUAL</p><h2>Conciliación de ítems</h2><p className="muted">Asigna una o más causas a un ítem, aun cuando no tenga PDF.</p></div><span>{total.toLocaleString("es-CL")} ítems</span></section>
     <section className="card">
       <div className="filters evaluation-filters">
-        <label>Estado<select value={reconciliationStatus || "ALL"} onChange={(event) => updateParams({ reconciliationStatus: event.target.value === "ALL" ? "" : event.target.value as "PENDING" | "RECONCILED" })}><option value="ALL">Todos</option><option value="PENDING">Pendientes</option><option value="RECONCILED">Conciliados</option></select></label>
-        <label>PDF<select value={documentFilter} onChange={(event) => updateParams({ documentFilter: event.target.value as "" | "true" | "false" })}><option value="">Todos</option><option value="true">Con PDF</option><option value="false">Sin PDF</option></select></label>
+        <label>Estado<Select value={reconciliationStatus || "ALL"} onValueChange={(value) => updateParams({ reconciliationStatus: value === "ALL" ? "" : value as "PENDING" | "RECONCILED" })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ALL">Todos</SelectItem><SelectItem value="PENDING">Pendientes</SelectItem><SelectItem value="RECONCILED">Conciliados</SelectItem></SelectContent></Select></label>
+        <label>PDF<Select value={documentFilter || "ALL"} onValueChange={(value) => updateParams({ documentFilter: value === "ALL" ? "" : value as "true" | "false" })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ALL">Todos</SelectItem><SelectItem value="true">Con PDF</SelectItem><SelectItem value="false">Sin PDF</SelectItem></SelectContent></Select></label>
+        <label className="evaluation-search">Buscar<Input value={search} placeholder="Obra, proyecto u observación" onChange={(event) => updateParams({ search: event.target.value })} /></label>
       </div>
       <ErrorMessage error={itemsQuery.error} />
       {itemsQuery.isLoading && <div className="loading-block"><LoadingIndicator label="Cargando ítems…" /></div>}
-      <DataTable data={items} columns={itemColumns} sorting={sorting} onSortingChange={(updater) => { const next = typeof updater === "function" ? updater(sorting) : updater; const first = next[0]; const nextSort = first?.id === "notes" || first?.id === "reconciliation_status" || first?.id === "project_id" ? first.id : "project_id"; updateParams({ sortBy: nextSort, sortDirection: first?.desc ? "desc" : "asc" }); }} globalFilter={search} onGlobalFilterChange={(updater) => updateParams({ search: typeof updater === "function" ? updater(search) : updater })} globalFilterPlaceholder="Obra, proyecto u observación" getRowId={(item) => item.public_id} emptyMessage="No hay ítems para los filtros seleccionados." />
-      <div className="pagination"><button className="secondary" type="button" disabled={!offset || itemsQuery.isFetching} onClick={() => updateParams({ offset: Math.max(0, offset - PAGE_SIZE) })}>Anterior</button><span>{total ? `${offset + 1}–${Math.min(offset + PAGE_SIZE, total)} de ${total}` : "0 ítems"}</span><button className="secondary" type="button" disabled={offset + PAGE_SIZE >= total || itemsQuery.isFetching} onClick={() => updateParams({ offset: offset + PAGE_SIZE })}>Siguiente</button></div>
+      <DataTable data={items} columns={itemColumns} sorting={sorting} onSortingChange={(updater) => { const next = typeof updater === "function" ? updater(sorting) : updater; const first = next[0]; const nextSort = first?.id === "notes" || first?.id === "reconciliation_status" || first?.id === "project_id" ? first.id : "project_id"; updateParams({ sortBy: nextSort, sortDirection: first?.desc ? "desc" : "asc" }); }} getRowId={(item) => item.public_id} emptyMessage="No hay ítems para los filtros seleccionados." />
+      <div className="pagination"><Button variant="secondary" size="sm" disabled={!offset || itemsQuery.isFetching} onClick={() => updateParams({ offset: Math.max(0, offset - PAGE_SIZE) })}>Anterior</Button><span>{total ? `${offset + 1}–${Math.min(offset + PAGE_SIZE, total)} de ${total}` : "0 ítems"}</span><Button variant="secondary" size="sm" disabled={offset + PAGE_SIZE >= total || itemsQuery.isFetching} onClick={() => updateParams({ offset: offset + PAGE_SIZE })}>Siguiente</Button></div>
     </section>
   </>;
 }
