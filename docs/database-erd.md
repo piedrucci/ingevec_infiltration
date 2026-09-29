@@ -1,6 +1,6 @@
 # Ingevec database ERD
 
-This diagram reflects the current `app` schema represented by the SQLAlchemy models and Alembic migrations through revision `20260921_0015`. Analytics views are not shown as physical tables; the main view is described below the diagram.
+This diagram reflects the current `app` schema represented by the SQLAlchemy models and Alembic migrations through revision `20260929_0017`. Analytics views are not shown as physical tables; the main view is described below the diagram.
 
 ```mermaid
 erDiagram
@@ -18,6 +18,8 @@ erDiagram
     EXCEL_SOURCE_ROW o|--o| POSTVENTA_ITEM : normalizes_to
     FAILURE_CAUSE_CATEGORY ||--o{ FAILURE_CAUSE_CATEGORY_LINK : includes
     FAILURE_CAUSE ||--o{ FAILURE_CAUSE_CATEGORY_LINK : classified_as
+    FAILURE_CAUSE_CATEGORY ||--o{ FAILURE_CAUSE_CATEGORY_GROUP_LINK : grouped_as
+    FAILURE_CAUSE_GROUP ||--o{ FAILURE_CAUSE_CATEGORY_GROUP_LINK : contains
     FAILURE_CAUSE ||--o{ FAILURE_CAUSE_ALIAS : has
     FAILURE_CAUSE o|--o{ POSTVENTA_ITEM : legacy_primary_cause
     POSTVENTA_ITEM ||--o{ POSTVENTA_ITEM_FAILURE_CAUSE : receives
@@ -104,6 +106,15 @@ erDiagram
         int failure_cause_id PK, FK
         int category_id PK, FK
     }
+    FAILURE_CAUSE_GROUP {
+        int id PK
+        varchar code UK "EJECUCION | PROPIETARIO | DISENO"
+        varchar display_name_es
+    }
+    FAILURE_CAUSE_CATEGORY_GROUP_LINK {
+        int category_id PK, FK
+        int group_id PK, FK
+    }
     FAILURE_CAUSE_ALIAS {
         int id PK
         int failure_cause_id FK
@@ -156,3 +167,5 @@ erDiagram
 ```
 
 `analytics.postventa_item_dashboard` is a reporting view built from `postventa_item`, `project`, the catalog tables, failure-cause tables, document associations, and project-manager hierarchy. It is intentionally omitted from the physical-table ERD.
+
+`failure_cause_group` is seeded with the three fixed groups: `EJECUCION` (Ejecución), `PROPIETARIO` (Propietario), and `DISENO` (Diseño). Group-to-category assignments are stored in `failure_cause_category_group_link`; the table is empty until the category mapping rules are applied. The current analytics view does not yet include group fields. Group-level reports should count distinct items when aggregating across groups because one category may belong to multiple groups.

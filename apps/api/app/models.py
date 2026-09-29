@@ -47,6 +47,27 @@ class FailureCauseCategoryLink(Base):
     category_id: Mapped[int] = mapped_column(ForeignKey('app.failure_cause_category.id', ondelete='CASCADE'), primary_key=True)
 
 
+class FailureCauseGroup(Base):
+    __tablename__ = 'failure_cause_group'
+    __table_args__ = (
+        UniqueConstraint('code', name='uq_failure_cause_group_code'),
+        CheckConstraint("code IN ('EJECUCION', 'PROPIETARIO', 'DISENO')", name='ck_failure_cause_group_code'),
+        {'schema': 'app'},
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    code: Mapped[str] = mapped_column(String(100), nullable=False)
+    display_name_es: Mapped[str] = mapped_column(String(255), nullable=False)
+
+
+class FailureCauseCategoryGroupLink(Base):
+    __tablename__ = 'failure_cause_category_group_link'
+    __table_args__ = {'schema': 'app'}
+
+    category_id: Mapped[int] = mapped_column(ForeignKey('app.failure_cause_category.id', ondelete='CASCADE'), primary_key=True)
+    group_id: Mapped[int] = mapped_column(ForeignKey('app.failure_cause_group.id', ondelete='CASCADE'), primary_key=True)
+
+
 class FailureCause(Base):
     __tablename__ = 'failure_cause'
     __table_args__ = (

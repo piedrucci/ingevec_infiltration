@@ -29,6 +29,7 @@ This repository contains the backend and administrative UI for Ingevec post-sale
 - Keep environment secrets out of Git. Update both environment examples whenever a required setting is added.
 - Keep uploaded documents and source workbooks in private object storage. Do not expose SeaweedFS objects through a public path or commit storage credentials.
 - Failure-cause categories and causes are many-to-many through `app.failure_cause_category_link`; do not reintroduce a category foreign key on `app.failure_cause`.
+- Failure-cause groups (`EJECUCION`, `PROPIETARIO`, `DISENO`) and categories are many-to-many through `app.failure_cause_category_group_link`; keep group associations in this junction table.
 - The reusable association importer is `python -m app.commands.import_category_causes <json-file>`. Run it with `--dry-run` first; it replaces all junction-table rows atomically, skips missing codes with warnings, and accepts inactive categories and causes.
 
 ## Verification
