@@ -7,11 +7,12 @@ This repository contains the backend and administrative UI for Ingevec post-sale
 ## Layout
 
 - `apps/api/app/`: FastAPI application, SQLAlchemy models, authentication, import/document services, and workers.
+- `apps/api/app/commands/`: reusable operational CLI commands, including the category/cause association importer.
 - `apps/api/migrations/`: Alembic migrations; migrations are the source of truth for deployed schema changes.
 - `apps/api/tests/`: API and service tests.
 - `apps/web/`: React/Vite administrative UI. It authenticates with Keycloak and calls the API through Vite's development `/v1` proxy or the configured production API URL.
 - `infra/`: NATS, SeaweedFS, Keycloak, Superset, and reverse-proxy configuration.
-- `docs/`: deployment and operational documentation.
+- `docs/`: deployment and operational documentation, including the `category_and_causes.json` association mapping and database ERD.
 - `compose*.yaml`, `Dockerfile`, `config/*.env.example`: local and production runtime configuration.
 - `data/`: sample/source workbooks. Treat these as business data; do not overwrite them during automated work. Database dumps in the repository are also business data and must not be regenerated or replaced casually.
 
@@ -27,10 +28,12 @@ This repository contains the backend and administrative UI for Ingevec post-sale
 - Add a migration for every database schema change. Do not edit an already-applied migration in a deployed environment.
 - Keep environment secrets out of Git. Update both environment examples whenever a required setting is added.
 - Keep uploaded documents and source workbooks in private object storage. Do not expose SeaweedFS objects through a public path or commit storage credentials.
+- Failure-cause categories and causes are many-to-many through `app.failure_cause_category_link`; do not reintroduce a category foreign key on `app.failure_cause`.
+- The reusable association importer is `python -m app.commands.import_category_causes <json-file>`. Run it with `--dry-run` first; it replaces all junction-table rows atomically, skips missing codes with warnings, and accepts inactive categories and causes.
 
 ## Verification
 
-From `apps/api`, install `requirements-dev.txt` and run `pytest`. For frontend changes, run `npm run build` from `apps/web`. For schema work, run `alembic upgrade head` against a disposable development database. For Compose changes, validate with the selected environment file and the appropriate overlays.
+From `apps/api`, install `requirements-dev.txt` and run `pytest`. For frontend changes, run `npm run build` from `apps/web`. For schema work, run `alembic upgrade head` against a disposable development database. For Compose changes, validate with the selected environment file and the appropriate overlays. For category/cause association changes, validate `docs/category_and_causes.json` with the importer dry-run before applying it to development or production.
 
 ## Current boundaries
 

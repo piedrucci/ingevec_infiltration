@@ -20,6 +20,7 @@ from app.models import (
     DocumentPostventaItem,
     FailureCause,
     FailureCauseCategory,
+    FailureCauseCategoryLink,
     ItemType,
     Location,
     PostventaItem,
@@ -80,14 +81,19 @@ def _failure_cause_summaries(db: Session, item_ids: list[int]) -> dict[int, list
     causes_by_item: dict[int, list[FailureCauseSummary]] = {item_id: [] for item_id in item_ids}
     if not item_ids:
         return causes_by_item
+    seen: set[tuple[int, str]] = set()
     cause_rows = db.execute(
         select(PostventaItemFailureCause.postventa_item_id, FailureCause, FailureCauseCategory)
         .join(FailureCause, FailureCause.id == PostventaItemFailureCause.failure_cause_id)
-        .join(FailureCauseCategory, FailureCauseCategory.id == FailureCause.category_id)
+        .join(FailureCauseCategoryLink, FailureCauseCategoryLink.failure_cause_id == FailureCause.id)
+        .join(FailureCauseCategory, FailureCauseCategory.id == FailureCauseCategoryLink.category_id)
         .where(PostventaItemFailureCause.postventa_item_id.in_(item_ids))
         .order_by(PostventaItemFailureCause.postventa_item_id, FailureCause.display_name_es)
     ).all()
     for item_id, cause, category in cause_rows:
+        if (item_id, cause.code) in seen:
+            continue
+        seen.add((item_id, cause.code))
         causes_by_item[item_id].append(FailureCauseSummary(
             code=cause.code,
             display_name_es=cause.display_name_es,
@@ -243,11 +249,15 @@ def list_documents(
 def list_failure_causes(_: dict = Depends(require_admin), db: Session = Depends(get_db)) -> list[FailureCauseOption]:
     rows = db.execute(
         select(FailureCause, FailureCauseCategory)
-        .join(FailureCauseCategory, FailureCauseCategory.id == FailureCause.category_id)
+        .join(FailureCauseCategoryLink, FailureCauseCategoryLink.failure_cause_id == FailureCause.id)
+        .join(FailureCauseCategory, FailureCauseCategory.id == FailureCauseCategoryLink.category_id)
         .where(FailureCause.is_active.is_(True))
         .order_by(FailureCauseCategory.display_name_es, FailureCause.display_name_es)
     ).all()
-    return [FailureCauseOption(code=cause.code, display_name_es=cause.display_name_es, category_name_es=category.display_name_es) for cause, category in rows]
+    options: dict[str, FailureCauseOption] = {}
+    for cause, category in rows:
+        options.setdefault(cause.code, FailureCauseOption(code=cause.code, display_name_es=cause.display_name_es, category_name_es=category.display_name_es))
+    return list(options.values())
 
 
 @documents_router.get("/failure-cause-categories", response_model=list[FailureCauseCategoryOption])
@@ -281,8 +291,13 @@ def create_new_failure_cause(
     except IntegrityError as exc:
         db.rollback()
         raise HTTPException(status_code=409, detail="The failure cause or one of its aliases already exists") from exc
-    category = db.get(FailureCauseCategory, cause.category_id)
-    return FailureCauseOption(code=cause.code, display_name_es=cause.display_name_es, category_name_es=category.display_name_es)
+    category = db.scalar(
+        select(FailureCauseCategory)
+        .join(FailureCauseCategoryLink, FailureCauseCategoryLink.category_id == FailureCauseCategory.id)
+        .where(FailureCauseCategoryLink.failure_cause_id == cause.id)
+        .order_by(FailureCauseCategory.display_name_es)
+    )
+    return FailureCauseOption(code=cause.code, display_name_es=cause.display_name_es, category_name_es=category.display_name_es if category else "")
 
 
 @documents_router.get("/{document_public_id}", response_model=DocumentDetail)

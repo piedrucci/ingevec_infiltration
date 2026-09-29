@@ -6,7 +6,7 @@ import unicodedata
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import FailureCause, FailureCauseAlias, FailureCauseCategory
+from app.models import FailureCause, FailureCauseAlias, FailureCauseCategory, FailureCauseCategoryLink
 
 
 def normalized_alias(value: str) -> str:
@@ -43,9 +43,10 @@ def create_failure_cause(
     if existing_alias is not None:
         raise FileExistsError("One of the aliases already belongs to another failure cause")
 
-    cause = FailureCause(code=code, display_name_es=display_name_es, category_id=category.id, is_active=True)
+    cause = FailureCause(code=code, display_name_es=display_name_es, is_active=True)
     db.add(cause)
     db.flush()
+    db.add(FailureCauseCategoryLink(failure_cause_id=cause.id, category_id=category.id))
     for alias in sorted(normalized_aliases):
         db.add(FailureCauseAlias(failure_cause_id=cause.id, normalized_alias=alias))
     db.commit()

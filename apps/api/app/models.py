@@ -39,6 +39,14 @@ class FailureCauseCategory(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 
+class FailureCauseCategoryLink(Base):
+    __tablename__ = 'failure_cause_category_link'
+    __table_args__ = {'schema': 'app'}
+
+    failure_cause_id: Mapped[int] = mapped_column(ForeignKey('app.failure_cause.id', ondelete='CASCADE'), primary_key=True)
+    category_id: Mapped[int] = mapped_column(ForeignKey('app.failure_cause_category.id', ondelete='CASCADE'), primary_key=True)
+
+
 class FailureCause(Base):
     __tablename__ = 'failure_cause'
     __table_args__ = (
@@ -49,7 +57,6 @@ class FailureCause(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     code: Mapped[str] = mapped_column(String(100), nullable=False)
     display_name_es: Mapped[str] = mapped_column(String(255), nullable=False)
-    category_id: Mapped[int] = mapped_column(ForeignKey('app.failure_cause_category.id', ondelete='RESTRICT'), nullable=False)
     description_es: Mapped[str | None] = mapped_column(Text)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)

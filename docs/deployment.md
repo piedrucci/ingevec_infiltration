@@ -72,3 +72,24 @@ directamente a `incoming/`, ejecuta excepcionalmente:
 ```bash
 docker compose -f compose.yaml -f compose.prod.yaml exec -T api python -m app.worker.reconcile --scan-storage
 ```
+
+## Importar asociaciones de causas
+
+El comando `app.commands.import_category_causes` reemplaza todas las filas de
+`app.failure_cause_category_link` usando un JSON que mapea códigos de categoría
+a arrays de códigos de causa. Los códigos inexistentes se omiten, se reportan
+como advertencias y no provocan un estado de salida distinto de cero.
+
+Primero valida el archivo sin modificar la base:
+
+```bash
+docker compose --env-file .env.development \
+  -f compose.yaml -f compose.dev.yaml \
+  run --rm -v "$PWD/docs:/docs:ro" api \
+  python -m app.commands.import_category_causes \
+  /docs/category_and_causes.json --dry-run
+```
+
+Para aplicar el reemplazo en desarrollo, elimina `--dry-run`. En producción,
+monta el archivo JSON como un volumen de solo lectura y ejecuta el mismo
+comando con los archivos Compose de producción después de revisar el resumen.

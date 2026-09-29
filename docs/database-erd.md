@@ -16,7 +16,8 @@ erDiagram
     SUBCONTRACTOR o|--o{ POSTVENTA_ITEM : performs
     EXCEL_IMPORT ||--o{ EXCEL_SOURCE_ROW : stages
     EXCEL_SOURCE_ROW o|--o| POSTVENTA_ITEM : normalizes_to
-    FAILURE_CAUSE_CATEGORY ||--o{ FAILURE_CAUSE : groups
+    FAILURE_CAUSE_CATEGORY ||--o{ FAILURE_CAUSE_CATEGORY_LINK : includes
+    FAILURE_CAUSE ||--o{ FAILURE_CAUSE_CATEGORY_LINK : classified_as
     FAILURE_CAUSE ||--o{ FAILURE_CAUSE_ALIAS : has
     FAILURE_CAUSE o|--o{ POSTVENTA_ITEM : legacy_primary_cause
     POSTVENTA_ITEM ||--o{ POSTVENTA_ITEM_FAILURE_CAUSE : receives
@@ -97,8 +98,11 @@ erDiagram
         int id PK
         varchar code UK
         varchar display_name_es
-        int category_id FK
         boolean is_active
+    }
+    FAILURE_CAUSE_CATEGORY_LINK {
+        int failure_cause_id PK, FK
+        int category_id PK, FK
     }
     FAILURE_CAUSE_ALIAS {
         int id PK
