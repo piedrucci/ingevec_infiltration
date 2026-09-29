@@ -7,7 +7,7 @@ This repository contains the backend and administrative UI for Ingevec post-sale
 ## Layout
 
 - `apps/api/app/`: FastAPI application, SQLAlchemy models, authentication, import/document services, and workers.
-- `apps/api/app/commands/`: reusable operational CLI commands, including the category/cause association importer.
+- `apps/api/app/commands/`: reusable operational CLI commands for category/cause links, group/category links, and item/cause reassignment.
 - `apps/api/migrations/`: Alembic migrations; migrations are the source of truth for deployed schema changes.
 - `apps/api/tests/`: API and service tests.
 - `apps/web/`: React/Vite administrative UI. It authenticates with Keycloak and calls the API through Vite's development `/v1` proxy or the configured production API URL.
@@ -32,10 +32,16 @@ This repository contains the backend and administrative UI for Ingevec post-sale
 - Failure-cause groups (`EJECUCION`, `PROPIETARIO`, `DISENO`) and categories are many-to-many through `app.failure_cause_category_group_link`; preserve Spanish accents in `display_name_es` labels and keep associations in this junction table.
 - The reusable association importer is `python -m app.commands.import_category_causes <json-file>`. Run it with `--dry-run` first; it replaces all junction-table rows atomically, skips missing codes with warnings, and accepts inactive categories and causes.
 - Group/category associations from the María Platias JSON use `python -m app.commands.import_group_categories <json-file>`. Run `--dry-run` first; this importer is add-only and idempotent, skips rows with missing groups, matches labels case/accent-insensitively while reporting normalized matches, and reports unmatched or ambiguous labels. It must not change item/cause or document/item associations.
+- Cause reassignment from the María Platias JSON uses `python -m app.commands.preview_postventa_item_causes <json-file> --dry-run` followed by `--apply`. Apply revalidates inside a transaction, blocks concurrent edits to item/cause tables, atomically replaces all cause links, synchronizes the legacy primary-cause pointer, invalidates the dashboard cache, and does not change document/item associations. Ambiguous notes or unresolved cause labels block apply; unmatched source notes are reported and skipped, and matched items with no causes remain pending.
+- Item notes match exactly after trimming outer whitespace; capitalization, prefixes, and additional text still matter. Cause labels resolve through normalized catalog names and aliases. Repeated JSON notes union their causes; a note matching multiple database items is accepted only when their source-row hashes are identical and repeated JSON rows have identical cause sets.
+- Item reconciliation is derived from the presence of at least one `app.postventa_item_failure_cause` row. A global replacement makes every item without a planned cause link pending, including items absent from the JSON. An unmatched JSON note is a skipped source record, not a separate pending database item.
+- Rebuilt cause links use `assignment_source=MIGRATED`, a new assignment timestamp, and no source document reference. Existing cause-link provenance is replaced; PDF links in `app.document_postventa_item` are preserved. The legacy `postventa_item.failure_cause_id` is the lowest selected cause ID, or null when no causes are assigned.
 
 ## Verification
 
 From `apps/api`, install `requirements-dev.txt` and run `pytest`. For frontend changes, run `npm run build` from `apps/web`. For schema work, run `alembic upgrade head` against a disposable development database. For Compose changes, validate with the selected environment file and the appropriate overlays. For category/cause association changes, validate `docs/category_and_causes.json` with the importer dry-run before applying it to development or production. For group/category changes, validate `data/AGUAS_LLUVIAS_2026_MARIA_PLATIAS.json` with the group/category importer dry-run; review skipped rows and unmatched labels before applying it to development or production.
+
+For item/cause reassignment, run the preview command with `--dry-run` in each target environment and review unmatched notes, ambiguous matches, unresolved causes, and projected reconciliation counts. Apply to development before production. After `--apply`, rerun the read-only preview and confirm current link/reconciled/pending counts match the plan. Matching fixes made manually in development must also be accounted for in production; a successful development preview does not establish that production notes or catalog labels match. JSON files must be mounted or copied into the target container before running the command.
 
 ## Current boundaries
 
