@@ -31,10 +31,11 @@ This repository contains the backend and administrative UI for Ingevec post-sale
 - Failure-cause categories and causes are many-to-many through `app.failure_cause_category_link`; do not reintroduce a category foreign key on `app.failure_cause`.
 - Failure-cause groups (`EJECUCION`, `PROPIETARIO`, `DISENO`) and categories are many-to-many through `app.failure_cause_category_group_link`; preserve Spanish accents in `display_name_es` labels and keep associations in this junction table.
 - The reusable association importer is `python -m app.commands.import_category_causes <json-file>`. Run it with `--dry-run` first; it replaces all junction-table rows atomically, skips missing codes with warnings, and accepts inactive categories and causes.
+- Group/category associations from the María Platias JSON use `python -m app.commands.import_group_categories <json-file>`. Run `--dry-run` first; this importer is add-only and idempotent, skips rows with missing groups, matches labels case/accent-insensitively while reporting normalized matches, and reports unmatched or ambiguous labels. It must not change item/cause or document/item associations.
 
 ## Verification
 
-From `apps/api`, install `requirements-dev.txt` and run `pytest`. For frontend changes, run `npm run build` from `apps/web`. For schema work, run `alembic upgrade head` against a disposable development database. For Compose changes, validate with the selected environment file and the appropriate overlays. For category/cause association changes, validate `docs/category_and_causes.json` with the importer dry-run before applying it to development or production.
+From `apps/api`, install `requirements-dev.txt` and run `pytest`. For frontend changes, run `npm run build` from `apps/web`. For schema work, run `alembic upgrade head` against a disposable development database. For Compose changes, validate with the selected environment file and the appropriate overlays. For category/cause association changes, validate `docs/category_and_causes.json` with the importer dry-run before applying it to development or production. For group/category changes, validate `data/AGUAS_LLUVIAS_2026_MARIA_PLATIAS.json` with the group/category importer dry-run; review skipped rows and unmatched labels before applying it to development or production.
 
 ## Current boundaries
 
