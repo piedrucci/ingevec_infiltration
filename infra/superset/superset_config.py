@@ -76,7 +76,10 @@ class KeycloakSecurityManager(SupersetSecurityManager):
 
     def get_rls_filters(self, table):
         filters = super().get_rls_filters(table)
-        if table.schema != "analytics" or table.table_name != "postventa_item_dashboard":
+        if table.schema != "analytics" or table.table_name not in {
+            "postventa_item_dashboard",
+            "postventa_item_cause_dashboard",
+        }:
             return filters
         role_names = {role.name for role in self.get_user_roles(g.user)}
         if "Admin" in role_names:
@@ -99,7 +102,8 @@ if os.environ.get("SUPERSET_OIDC_CLIENT_SECRET"):
     CUSTOM_SECURITY_MANAGER = KeycloakSecurityManager
     AUTH_ROLES_MAPPING = {
         "superset_admin": ["Admin"],
-        "superset_viewer": ["Gamma", "Ingevec Viewer"],
+        "superset_viewer": ["Ingevec Viewer"],
+        "superset_dashboard_builder": ["Ingevec Dashboard Builder"],
     }
     AUTH_ROLES_SYNC_AT_LOGIN = True
     _public = os.environ["SUPERSET_OIDC_PUBLIC_URL"].rstrip("/")

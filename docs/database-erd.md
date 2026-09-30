@@ -1,6 +1,6 @@
 # Ingevec database ERD
 
-This diagram reflects the current `app` schema represented by the SQLAlchemy models and Alembic migrations through revision `20260929_0017`. Analytics views are not shown as physical tables; the main view is described below the diagram.
+This diagram reflects the current `app` schema represented by the SQLAlchemy models and Alembic migrations through revision `20260930_0019`. Analytics views are not shown as physical tables; the reporting datasets are described below the diagram and in `docs/superset-analytics.md`.
 
 ```mermaid
 erDiagram
@@ -166,6 +166,6 @@ erDiagram
     }
 ```
 
-`analytics.postventa_item_dashboard` is a reporting view built from `postventa_item`, `project`, the catalog tables, failure-cause tables, document associations, and project-manager hierarchy. It is intentionally omitted from the physical-table ERD.
+`analytics.postventa_item_dashboard` is an item-level reporting view built from `postventa_item`, `project`, the catalog tables, failure-cause tables, document associations, and project-manager hierarchy. `analytics.postventa_item_cause_dashboard` is a cause/category/group-level view intended for cause analysis. These reporting views are intentionally omitted from the physical-table ERD.
 
-`failure_cause_group` is seeded with the three fixed groups: `EJECUCION` (Ejecución), `PROPIETARIO` (Propietario), and `DISENO` (Diseño). The codes are stable identifiers; `display_name_es` contains the accented labels `Propietario`, `Ejecución`, and `Diseño`. Group-to-category assignments are stored in `failure_cause_category_group_link`; the table is empty until the category mapping rules are applied. The current analytics view does not yet include group fields. Group-level reports should count distinct items when aggregating across groups because one category may belong to multiple groups.
+`failure_cause_group` is seeded with the three fixed groups: `EJECUCION` (Ejecución), `PROPIETARIO` (Propietario), and `DISENO` (Diseño). The codes are stable identifiers; `display_name_es` contains the accented labels `Propietario`, `Ejecución`, and `Diseño`. Group-to-category assignments are stored in `failure_cause_category_group_link`. Cause-level analytics includes these labels; because causes can have multiple categories and categories can have multiple groups, it must be treated as an item–cause–category–group grain. Group/category charts should use distinct item counts when aggregating across dimensions.

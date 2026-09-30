@@ -7,7 +7,8 @@
       { "name": "admin", "description": "Administrates Ingevec postventa" },
       { "name": "viewer", "description": "Views Ingevec postventa" },
       { "name": "superset_admin", "description": "Administrates Ingevec analytics" },
-      { "name": "superset_viewer", "description": "Views assigned Ingevec analytics" }
+      { "name": "superset_viewer", "description": "Views assigned Ingevec analytics" },
+      { "name": "superset_dashboard_builder", "description": "Creates scoped Ingevec analytics dashboards" }
     ]
   },
   "clients": [

@@ -7,7 +7,8 @@
       { "name": "admin", "description": "Administra Ingevec postventa" },
       { "name": "viewer", "description": "Consulta Ingevec postventa" },
       { "name": "superset_admin", "description": "Administra Ingevec analytics" },
-      { "name": "superset_viewer", "description": "Consulta Ingevec analytics asignado" }
+      { "name": "superset_viewer", "description": "Consulta Ingevec analytics asignado" },
+      { "name": "superset_dashboard_builder", "description": "Crea dashboards de analítica con alcance asignado" }
     ]
   },
   "groups": [
