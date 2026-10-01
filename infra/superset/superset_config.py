@@ -22,6 +22,14 @@ PROXY_FIX_CONFIG = {
 PREFERRED_URL_SCHEME = "https"
 FEATURE_FLAGS = {"ENABLE_TEMPLATE_PROCESSING": False}
 
+# Offer English and Spanish in Superset's language picker. English remains the
+# default; each user can switch languages from the navigation bar.
+BABEL_DEFAULT_LOCALE = "en"
+LANGUAGES = {
+    "en": {"flag": "us", "name": "English"},
+    "es": {"flag": "es", "name": "Español"},
+}
+
 # Superset starts with a local bootstrap administrator. Keycloak OIDC is added
 # after its dedicated client and redirect URI are configured for each domain.
 AUTH_USER_REGISTRATION = True
