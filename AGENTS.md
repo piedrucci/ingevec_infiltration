@@ -47,6 +47,6 @@ For item/cause reassignment, run the preview command with `--dry-run` in each ta
 ## Current boundaries
 
 - Only the `Año 2026` sheet is imported in v1.
-- The PDF worker consumes JetStream events and publishes through a transactional outbox. It does not poll object storage. Run `python -m app.worker.reconcile --scan-storage` only when PDFs were placed directly in the `incoming/` prefix; normal uploads go through the API. Production schedules outbox reconciliation externally.
+- The PDF worker blocks on JetStream and does not query Neon while idle. The API publishes each upload event immediately after commit; do not schedule recurring outbox reconciliation in production because each run can wake Neon compute. Run `python -m app.worker.reconcile` manually only to recover pending outbox events after a broker interruption. Run it with `--scan-storage` only when PDFs were placed directly in the `incoming/` prefix; normal uploads go through the API.
 - The processor uses native PDF extraction with bounded Spanish OCR fallback, controlled failure-cause aliases, and conservative matching. Confident matches move to `processed/`; uncertain or failed documents remain in review/error states, with private object storage as the source of truth.
 - Dashboard aggregates are cached for five minutes by default and must be invalidated when imports, documents, or associations change.
