@@ -27,12 +27,12 @@ function BreakdownCard({ title, rows, total }: { title: string; rows: DashboardB
   </section>;
 }
 
-const subcontractorTableFeatures = tableFeatures({ ...stockFeatures, paginatedRowModel: createPaginatedRowModel() });
+const subcontractorTableFeatures = tableFeatures({ ...stockFeatures, sortedRowModel: createSortedRowModel(), paginatedRowModel: createPaginatedRowModel() });
 const managerProgressTableFeatures = tableFeatures({ ...stockFeatures, sortedRowModel: createSortedRowModel() });
 const subcontractorColumns: ColumnDef<StockFeatures, DashboardSubcontractorBreakdown, unknown>[] = [
-  { accessorKey: "name", header: "Subcontratista", enableSorting: false },
-  { accessorKey: "speciality", header: "Especialidad", enableSorting: false },
-  { accessorKey: "project_count", header: "Proyectos", enableSorting: false, cell: ({ getValue }) => Number(getValue()).toLocaleString("es-CL") },
+  { accessorKey: "name", header: ({ column }) => <SortableHeader label="Subcontratista" direction={column.getIsSorted()} onToggle={() => column.toggleSorting(column.getIsSorted() === "asc")} /> },
+  { accessorKey: "speciality", header: ({ column }) => <SortableHeader label="Especialidad" direction={column.getIsSorted()} onToggle={() => column.toggleSorting(column.getIsSorted() === "asc")} /> },
+  { accessorKey: "project_count", header: ({ column }) => <SortableHeader label="Proyectos" direction={column.getIsSorted()} onToggle={() => column.toggleSorting(column.getIsSorted() === "asc")} />, cell: ({ getValue }) => Number(getValue()).toLocaleString("es-CL") },
 ];
 
 function SubcontractorCard() {
@@ -40,6 +40,7 @@ function SubcontractorCard() {
   const rows = query.data ?? [];
   const [selectedSubcontractor, setSelectedSubcontractor] = useState<DashboardSubcontractorBreakdown | null>(null);
   const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 });
+  const [sorting, setSorting] = useState<SortingState>([{ id: "project_count", desc: true }]);
   useEffect(() => {
     setPagination((current) => ({ ...current, pageIndex: Math.min(current.pageIndex, Math.max(0, Math.ceil(rows.length / current.pageSize) - 1)) }));
   }, [rows.length]);
@@ -47,8 +48,9 @@ function SubcontractorCard() {
     features: subcontractorTableFeatures,
     data: rows,
     columns: subcontractorColumns,
-    state: { pagination },
+    state: { pagination, sorting },
     onPaginationChange: setPagination,
+    onSortingChange: setSorting,
     getRowId: (row) => row.name,
   });
   const pageRows = table.getRowModel().rows;
@@ -60,7 +62,7 @@ function SubcontractorCard() {
     {query.isLoading ? <div className="empty-state"><LoadingIndicator label="Cargando subcontratistas…" compact /></div> : rows.length ? <>
       <div className="subcontractor-table-wrap">
         <Table className="subcontractor-table">
-          <TableHeader><TableRow><TableHead>Subcontratista</TableHead><TableHead>Especialidad</TableHead><TableHead className="text-right">Proyectos</TableHead></TableRow></TableHeader>
+          <TableHeader>{table.getHeaderGroups().map((group) => <TableRow key={group.id}>{group.headers.map((header) => <TableHead key={header.id} aria-sort={header.column.getIsSorted() === "asc" ? "ascending" : header.column.getIsSorted() === "desc" ? "descending" : "none"} className={header.column.id === "project_count" ? "text-right" : undefined}>{flexRender(header.column.columnDef.header, header.getContext())}</TableHead>)}</TableRow>)}</TableHeader>
           <TableBody>
             {pageRows.map((row) => <TableRow key={row.id} className="subcontractor-clickable-row" tabIndex={0} aria-label={`Ver proyectos de ${row.original.name}`} onClick={() => setSelectedSubcontractor(row.original)} onKeyDown={(event) => {
               if (event.key === "Enter" || event.key === " ") {
