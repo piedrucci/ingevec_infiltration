@@ -14,6 +14,12 @@ class DashboardBreakdown(BaseModel):
     count: int
 
 
+class DashboardSubcontractorBreakdown(BaseModel):
+    name: str
+    speciality: str
+    project_count: int
+
+
 class DashboardAssociationBreakdown(BaseModel):
     project_manager_id: int | None
     name: str
@@ -176,7 +182,6 @@ class PostventaItemListItem(BaseModel):
     item_type: str
     notes: str
     request_date: date | None
-    subcontractor: str | None
     handled_by: str | None
     failure_causes: list[FailureCauseSummary]
     reconciliation_status: str

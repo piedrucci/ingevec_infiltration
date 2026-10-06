@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.models import (
     Classification, DivisionManager, ExcelImport, ExcelSourceRow, ItemType,
     Location, PostventaItem, Project, ProjectAdmin, ProjectManager,
-    Subcontractor, Supervisor, Typology,
+    Supervisor, Typology,
 )
 from app.services.dashboard_cache import invalidate_dashboard_summary
 
@@ -154,7 +154,6 @@ def _normalize_row(db: Session, source: ExcelSourceRow, caches: dict) -> None:
     classification = _catalog(db, Classification, _value(raw, "Clasificación"), caches)
     # The workbook contains two Item columns; the second is the business item type.
     item_type = _catalog(db, ItemType, _value(raw, "Item", occurrence=2), caches)
-    subcontractor = _catalog(db, Subcontractor, _value(raw, "Subcontrato"), caches)
     work_number = project_identifier(_value(raw, "N° Obra"))
     project_name = clean(_value(raw, "Proyecto"))
     notes = clean(_value(raw, "Obs"))
@@ -201,7 +200,6 @@ def _normalize_row(db: Session, source: ExcelSourceRow, caches: dict) -> None:
         source_row_id=source.id, project_id=project.id, classification_id=classification.id,
         item_type_id=item_type.id, notes=notes,
         request_date=as_date(_value(raw, "Fecha Solicitud")),
-        subcontractor_id=subcontractor.id if subcontractor else None,
         handled_by=clean(_value(raw, "Gestionado por")),
     ))
     source.normalization_status = "NORMALIZED"

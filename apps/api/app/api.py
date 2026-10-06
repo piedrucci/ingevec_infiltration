@@ -28,12 +28,12 @@ from app.models import (
     Project,
     ProjectAdmin,
     ProjectManager,
-    Subcontractor,
     Supervisor,
     Typology,
 )
 from app.schemas import (
     DashboardSummary,
+    DashboardSubcontractorBreakdown,
     DocumentAssociationItem,
     DocumentCandidate,
     DocumentCandidateResponse,
@@ -54,7 +54,7 @@ from app.schemas import (
     ProjectListItem,
     ProjectListResponse,
 )
-from app.services.dashboard import dashboard_summary
+from app.services.dashboard import dashboard_subcontractors, dashboard_summary
 from app.services.dashboard_cache import invalidate_dashboard_summary
 from app.services.document_candidates import find_document_candidates
 from app.services.document_events import document_jetstream
@@ -450,6 +450,11 @@ def get_dashboard_summary(_: dict = Depends(require_admin), db: Session = Depend
     return dashboard_summary(db)
 
 
+@dashboard_router.get("/subcontractors", response_model=list[DashboardSubcontractorBreakdown])
+def get_dashboard_subcontractors(_: dict = Depends(require_admin), db: Session = Depends(get_db)) -> list[DashboardSubcontractorBreakdown]:
+    return dashboard_subcontractors(db)
+
+
 @documents_router.get("/{document_public_id}/content", responses={404: {"description": "Document not found"}})
 def get_document_content(
     document_public_id: UUID,
@@ -619,7 +624,6 @@ def list_postventa_items(
             Project.name.label("project_name"),
             Classification.name.label("classification"),
             ItemType.name.label("item_type"),
-            Subcontractor.name.label("subcontractor"),
             Document,
             cause_exists.label("is_reconciled"),
             document_exists.label("has_document"),
@@ -629,7 +633,6 @@ def list_postventa_items(
         .outerjoin(ProjectManager, ProjectManager.id == ProjectAdmin.project_manager_id)
         .join(Classification, Classification.id == PostventaItem.classification_id)
         .join(ItemType, ItemType.id == PostventaItem.item_type_id)
-        .outerjoin(Subcontractor, Subcontractor.id == PostventaItem.subcontractor_id)
         .outerjoin(DocumentPostventaItem, DocumentPostventaItem.postventa_item_id == PostventaItem.id)
         .outerjoin(Document, Document.id == DocumentPostventaItem.document_id)
         .where(*filters)
@@ -650,7 +653,6 @@ def list_postventa_items(
                 item_type=item_type,
                 notes=item.notes,
                 request_date=item.request_date,
-                subcontractor=subcontractor,
                 handled_by=item.handled_by,
                 failure_causes=causes_by_item.get(item.id, []),
                 reconciliation_status="RECONCILED" if is_reconciled else "PENDING",
@@ -663,7 +665,7 @@ def list_postventa_items(
                     processed_at=document.processed_at,
                 ) if document else None,
             )
-            for item, project_name, classification, item_type, subcontractor, document, is_reconciled, has_document in rows
+            for item, project_name, classification, item_type, document, is_reconciled, has_document in rows
         ],
         page=PageMeta(total=total, limit=limit, offset=offset),
     )
@@ -682,7 +684,6 @@ def _postventa_item_detail(db: Session, public_id: UUID) -> PostventaItemListIte
             Project.name.label("project_name"),
             Classification.name.label("classification"),
             ItemType.name.label("item_type"),
-            Subcontractor.name.label("subcontractor"),
             Document,
             cause_exists.label("is_reconciled"),
             document_exists.label("has_document"),
@@ -690,14 +691,13 @@ def _postventa_item_detail(db: Session, public_id: UUID) -> PostventaItemListIte
         .join(Project, Project.id == PostventaItem.project_id)
         .join(Classification, Classification.id == PostventaItem.classification_id)
         .join(ItemType, ItemType.id == PostventaItem.item_type_id)
-        .outerjoin(Subcontractor, Subcontractor.id == PostventaItem.subcontractor_id)
         .outerjoin(DocumentPostventaItem, DocumentPostventaItem.postventa_item_id == PostventaItem.id)
         .outerjoin(Document, Document.id == DocumentPostventaItem.document_id)
         .where(PostventaItem.public_id == public_id)
     ).one_or_none()
     if row is None:
         raise HTTPException(status_code=404, detail="Postventa item not found")
-    item, project_name, classification, item_type, subcontractor, document, is_reconciled, has_document = row
+    item, project_name, classification, item_type, document, is_reconciled, has_document = row
     causes = _failure_cause_summaries(db, [item.id])[item.id]
     return PostventaItemListItem(
         id=item.id,
@@ -708,7 +708,6 @@ def _postventa_item_detail(db: Session, public_id: UUID) -> PostventaItemListIte
         item_type=item_type,
         notes=item.notes,
         request_date=item.request_date,
-        subcontractor=subcontractor,
         handled_by=item.handled_by,
         failure_causes=causes,
         reconciliation_status="RECONCILED" if is_reconciled else "PENDING",

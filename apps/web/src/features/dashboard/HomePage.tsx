@@ -1,6 +1,11 @@
-import type { DashboardAssociationBreakdown, DashboardBreakdown } from "../../types";
+import { useEffect, useState } from "react";
+import { createPaginatedRowModel, flexRender, tableFeatures, type ColumnDef, type PaginationState, type StockFeatures, stockFeatures, useTable } from "@tanstack/react-table";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import type { DashboardAssociationBreakdown, DashboardBreakdown, DashboardSubcontractorBreakdown } from "../../types";
 import { Link } from "react-router-dom";
-import { useDashboardSummary } from "../../queries/dashboard";
+import { useDashboardSubcontractors, useDashboardSummary } from "../../queries/dashboard";
+import { Button } from "../../components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
 import { ErrorMessage, LoadingIndicator } from "../documents/components";
 
 const statusLabels: Record<string, string> = {
@@ -18,6 +23,55 @@ function BreakdownCard({ title, rows, total }: { title: string; rows: DashboardB
       const percent = total ? (row.count / total) * 100 : 0;
       return <li key={row.name}><div><span title={row.name}>{row.name}</span><strong>{row.count.toLocaleString("es-CL")} <small>({percent.toFixed(1)}%)</small></strong></div><div className="progress-track">{percent > 0 && <span style={{ width: `${percent}%` }} />}</div></li>;
     })}</ul> : <p className="empty-state">Sin datos disponibles.</p>}
+  </section>;
+}
+
+const subcontractorTableFeatures = tableFeatures({ ...stockFeatures, paginatedRowModel: createPaginatedRowModel() });
+const subcontractorColumns: ColumnDef<StockFeatures, DashboardSubcontractorBreakdown, unknown>[] = [
+  { accessorKey: "name", header: "Subcontratista", enableSorting: false },
+  { accessorKey: "speciality", header: "Especialidad", enableSorting: false },
+  { accessorKey: "project_count", header: "Proyectos", enableSorting: false, cell: ({ getValue }) => Number(getValue()).toLocaleString("es-CL") },
+];
+
+function SubcontractorCard() {
+  const query = useDashboardSubcontractors();
+  const rows = query.data ?? [];
+  const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 });
+  useEffect(() => {
+    setPagination((current) => ({ ...current, pageIndex: Math.min(current.pageIndex, Math.max(0, Math.ceil(rows.length / current.pageSize) - 1)) }));
+  }, [rows.length]);
+  const table = useTable({
+    features: subcontractorTableFeatures,
+    data: rows,
+    columns: subcontractorColumns,
+    state: { pagination },
+    onPaginationChange: setPagination,
+    getRowId: (row) => row.name,
+  });
+  const pageRows = table.getRowModel().rows;
+
+  return <section className="card breakdown-card subcontractor-card">
+    <div className="section-title"><h2>Proyectos por subcontratista</h2><span>{query.isLoading ? "Cargando…" : `${rows.length} subcontratistas`}</span></div>
+    <ErrorMessage error={query.error} />
+    {query.isLoading ? <div className="empty-state"><LoadingIndicator label="Cargando subcontratistas…" compact /></div> : rows.length ? <>
+      <div className="subcontractor-table-wrap">
+        <Table className="subcontractor-table">
+          <TableHeader><TableRow><TableHead>Subcontratista</TableHead><TableHead>Especialidad</TableHead><TableHead className="text-right">Proyectos</TableHead></TableRow></TableHeader>
+          <TableBody>
+            {pageRows.map((row) => <TableRow key={row.id}>
+              {row.getVisibleCells().map((cell) => <TableCell key={cell.id} className={cell.column.id === "project_count" ? "text-right tabular-nums" : undefined}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}
+            </TableRow>)}
+          </TableBody>
+        </Table>
+      </div>
+      <div className="pagination subcontractor-pagination">
+        <span>{`${pagination.pageIndex * pagination.pageSize + 1}–${Math.min((pagination.pageIndex + 1) * pagination.pageSize, rows.length)} de ${rows.length}`}</span>
+        <div>
+          <Button variant="outline" size="icon" aria-label="Página anterior" title="Página anterior" disabled={!table.getCanPreviousPage()} onClick={() => table.previousPage()}><ChevronLeft aria-hidden="true" /></Button>
+          <Button variant="outline" size="icon" aria-label="Página siguiente" title="Página siguiente" disabled={!table.getCanNextPage()} onClick={() => table.nextPage()}><ChevronRight aria-hidden="true" /></Button>
+        </div>
+      </div>
+    </> : <p className="empty-state">Sin datos disponibles.</p>}
   </section>;
 }
 
@@ -51,7 +105,7 @@ export function HomePage() {
       <BreakdownCard title="Ítems por gerente de proyecto" rows={breakdowns.project_managers ?? []} total={totals.items} />
       <BreakdownCard title="Ítems por clasificación" rows={breakdowns.classifications ?? []} total={totals.items} />
       <BreakdownCard title="Ítems por tipo" rows={breakdowns.item_types ?? []} total={totals.items} />
-      <BreakdownCard title="Ítems por subcontratista" rows={breakdowns.subcontractors ?? []} total={totals.items} />
+      <SubcontractorCard />
       <BreakdownCard title="Ítems por responsable" rows={breakdowns.handled_by ?? []} total={totals.items} />
       <BreakdownCard title="PDFs por estado" rows={Object.entries(totals.documents_by_status).map(([name, count]) => ({ name: statusLabels[name] ?? name, count }))} total={totals.documents} />
     </section>

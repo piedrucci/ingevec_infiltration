@@ -1,8 +1,9 @@
 import { queryOptions, useQuery } from "@tanstack/react-query";
 
-import { getDashboardSummary } from "../api";
+import { getDashboardSubcontractors, getDashboardSummary } from "../api";
 
 export const dashboardQueryKey = ["dashboard", "summary"] as const;
+export const dashboardSubcontractorsQueryKey = ["dashboard", "subcontractors"] as const;
 
 export const dashboardQueryOptions = queryOptions({
   queryKey: dashboardQueryKey,
@@ -13,4 +14,13 @@ export const dashboardQueryOptions = queryOptions({
 
 export function useDashboardSummary() {
   return useQuery(dashboardQueryOptions);
+}
+
+export function useDashboardSubcontractors() {
+  return useQuery({
+    queryKey: dashboardSubcontractorsQueryKey,
+    queryFn: getDashboardSubcontractors,
+    staleTime: 60_000,
+    refetchInterval: 60_000,
+  });
 }

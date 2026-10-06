@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from app.schemas import DashboardAssociationBreakdown, DashboardBreakdown, DashboardSummary, DashboardTotals
+from app.schemas import DashboardAssociationBreakdown, DashboardBreakdown, DashboardSummary, DashboardSubcontractorBreakdown, DashboardTotals
 from app.services.dashboard_cache import dashboard_cache_version, get_dashboard_summary, set_dashboard_summary
 
 
@@ -18,7 +18,6 @@ WITH base AS (
     COALESCE(NULLIF(BTRIM(pm.name), ''), 'Sin asignar') AS project_manager,
     COALESCE(NULLIF(BTRIM(c.name), ''), 'Sin asignar') AS classification,
     COALESCE(NULLIF(BTRIM(it.name), ''), 'Sin asignar') AS item_type,
-    COALESCE(NULLIF(BTRIM(sc.name), ''), 'Sin asignar') AS subcontractor,
     COALESCE(NULLIF(BTRIM(pi.handled_by), ''), 'Sin asignar') AS handled_by,
     EXISTS (
       SELECT 1
@@ -37,7 +36,6 @@ WITH base AS (
   LEFT JOIN app.division_manager dm ON dm.id = pm.division_manager_id
   JOIN app.classification c ON c.id = pi.classification_id
   JOIN app.item_type it ON it.id = pi.item_type_id
-  LEFT JOIN app.subcontractor sc ON sc.id = pi.subcontractor_id
 ),
 documents AS (SELECT status, COUNT(*)::int AS count FROM app.document GROUP BY status)
 SELECT jsonb_build_object(
@@ -55,7 +53,6 @@ SELECT jsonb_build_object(
     'project_managers', COALESCE((SELECT jsonb_agg(jsonb_build_object('name', name, 'count', count) ORDER BY count DESC, name) FROM (SELECT project_manager AS name, COUNT(*)::int AS count FROM base GROUP BY 1) grouped), '[]'::jsonb),
     'classifications', COALESCE((SELECT jsonb_agg(jsonb_build_object('name', name, 'count', count) ORDER BY count DESC, name) FROM (SELECT classification AS name, COUNT(*)::int AS count FROM base GROUP BY 1) grouped), '[]'::jsonb),
     'item_types', COALESCE((SELECT jsonb_agg(jsonb_build_object('name', name, 'count', count) ORDER BY count DESC, name) FROM (SELECT item_type AS name, COUNT(*)::int AS count FROM base GROUP BY 1) grouped), '[]'::jsonb),
-    'subcontractors', COALESCE((SELECT jsonb_agg(jsonb_build_object('name', name, 'count', count) ORDER BY count DESC, name) FROM (SELECT subcontractor AS name, COUNT(*)::int AS count FROM base GROUP BY 1) grouped), '[]'::jsonb),
     'handled_by', COALESCE((SELECT jsonb_agg(jsonb_build_object('name', name, 'count', count) ORDER BY count DESC, name) FROM (SELECT handled_by AS name, COUNT(*)::int AS count FROM base GROUP BY 1) grouped), '[]'::jsonb)
   ),
   'project_manager_association_progress', COALESCE((
@@ -80,6 +77,20 @@ SELECT jsonb_build_object(
   ), '[]'::jsonb)
 ) AS summary
 """)
+
+_SUBCONTRACTORS_SQL = text("""
+SELECT sc.name, s.name AS speciality, COUNT(DISTINCT ps.project_id)::int AS project_count
+FROM app.subcontractor sc
+JOIN app.speciality s ON s.id = sc.speciality_id
+LEFT JOIN app.project_subcontractor ps ON ps.subcontractor_id = sc.id
+GROUP BY sc.id, sc.name, s.name
+ORDER BY project_count DESC, sc.name
+""")
+
+
+def dashboard_subcontractors(db: Session) -> list[DashboardSubcontractorBreakdown]:
+    rows = db.execute(_SUBCONTRACTORS_SQL).mappings()
+    return [DashboardSubcontractorBreakdown.model_validate(row) for row in rows]
 
 
 def dashboard_summary(db: Session) -> DashboardSummary:

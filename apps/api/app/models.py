@@ -21,7 +21,16 @@ Typology=_catalog('Typology','typology')
 class Location(Base):
     __tablename__='location'; __table_args__={'schema':'app'}
     id: Mapped[int] = mapped_column(Integer, primary_key=True); name: Mapped[str] = mapped_column(String(255), nullable=False); geographic_zone: Mapped[str | None] = mapped_column(String(255))
-Supervisor=_catalog('Supervisor','supervisor'); Classification=_catalog('Classification','classification'); ItemType=_catalog('ItemType','item_type'); Subcontractor=_catalog('Subcontractor','subcontractor')
+Supervisor=_catalog('Supervisor','supervisor'); Classification=_catalog('Classification','classification'); ItemType=_catalog('ItemType','item_type')
+class Speciality(Base):
+    __tablename__='speciality'; __table_args__={'schema':'app'}
+    id: Mapped[int] = mapped_column(Integer, primary_key=True); name: Mapped[str] = mapped_column(String(255), nullable=False)
+class Subcontractor(Base):
+    __tablename__='subcontractor'; __table_args__={'schema':'app'}
+    id: Mapped[int] = mapped_column(Integer, primary_key=True); name: Mapped[str] = mapped_column(String(255), nullable=False); speciality_id: Mapped[int] = mapped_column(ForeignKey('app.speciality.id'), nullable=False)
+class ProjectSubcontractor(Base):
+    __tablename__='project_subcontractor'; __table_args__={'schema':'app'}
+    project_id: Mapped[str] = mapped_column(ForeignKey('app.project.id', ondelete='CASCADE', onupdate='CASCADE'), primary_key=True); subcontractor_id: Mapped[int] = mapped_column(ForeignKey('app.subcontractor.id', ondelete='CASCADE'), primary_key=True)
 class ExcelImport(Base):
     __tablename__='excel_import'; __table_args__={'schema':'app'}
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4); original_filename: Mapped[str] = mapped_column(String(255), nullable=False); file_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False); status: Mapped[str] = mapped_column(String(32), nullable=False, default='RECEIVED'); source_sheet: Mapped[str] = mapped_column(String(128), nullable=False, default='Año 2026'); row_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0); imported_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -108,7 +117,7 @@ class PostventaItem(Base):
         Index('ix_postventa_item_notes_trgm', 'notes', postgresql_using='gin', postgresql_ops={'notes': 'gin_trgm_ops'}),
         {'schema':'app'},
     )
-    id: Mapped[int] = mapped_column(Integer, primary_key=True); public_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), unique=True, default=uuid.uuid4, server_default=func.gen_random_uuid(), nullable=False); source_row_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('app.excel_source_row.id', ondelete='CASCADE'), unique=True); project_id: Mapped[str] = mapped_column(ForeignKey('app.project.id', onupdate='CASCADE'), nullable=False); classification_id: Mapped[int] = mapped_column(ForeignKey('app.classification.id'), nullable=False); item_type_id: Mapped[int] = mapped_column(ForeignKey('app.item_type.id'), nullable=False); failure_cause_id: Mapped[int | None] = mapped_column(ForeignKey('app.failure_cause.id', ondelete='RESTRICT')); notes: Mapped[str] = mapped_column(Text, nullable=False); request_date: Mapped[date | None] = mapped_column(Date); subcontractor_id: Mapped[int | None] = mapped_column(ForeignKey('app.subcontractor.id')); handled_by: Mapped[str | None] = mapped_column(String(255))
+    id: Mapped[int] = mapped_column(Integer, primary_key=True); public_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), unique=True, default=uuid.uuid4, server_default=func.gen_random_uuid(), nullable=False); source_row_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('app.excel_source_row.id', ondelete='CASCADE'), unique=True); project_id: Mapped[str] = mapped_column(ForeignKey('app.project.id', onupdate='CASCADE'), nullable=False); classification_id: Mapped[int] = mapped_column(ForeignKey('app.classification.id'), nullable=False); item_type_id: Mapped[int] = mapped_column(ForeignKey('app.item_type.id'), nullable=False); failure_cause_id: Mapped[int | None] = mapped_column(ForeignKey('app.failure_cause.id', ondelete='RESTRICT')); notes: Mapped[str] = mapped_column(Text, nullable=False); request_date: Mapped[date | None] = mapped_column(Date); handled_by: Mapped[str | None] = mapped_column(String(255))
 
 
 class PostventaItemFailureCause(Base):

@@ -29,7 +29,6 @@ export type PostventaItem = {
   item_type: string;
   notes: string;
   request_date: string | null;
-  subcontractor: string | null;
   handled_by: string | null;
   failure_causes: { code: string; display_name_es: string; category_name_es: string }[];
   document: DocumentSummary | null;
@@ -40,6 +39,7 @@ export type PostventaItem = {
 export type PageResponse<T> = { items: T[]; page: Page };
 
 export type DashboardBreakdown = { name: string; count: number };
+export type DashboardSubcontractorBreakdown = { name: string; speciality: string; project_count: number };
 export type DashboardAssociationBreakdown = {
   project_manager_id: number | null;
   name: string;

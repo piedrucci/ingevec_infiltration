@@ -1,5 +1,5 @@
 import { accessToken } from "./auth";
-import type { DashboardSummary, Document, DocumentCandidateResponse, DocumentDetail, DocumentSummary, FailureCauseCategoryOption, FailureCauseOption, PageResponse, PostventaItem, Project } from "./types";
+import type { DashboardSubcontractorBreakdown, DashboardSummary, Document, DocumentCandidateResponse, DocumentDetail, DocumentSummary, FailureCauseCategoryOption, FailureCauseOption, PageResponse, PostventaItem, Project } from "./types";
 
 type ApiErrorDetail = string | { code?: string; document_public_id?: string; original_filename?: string };
 
@@ -53,6 +53,10 @@ export function getProjects(options: ProjectSearchOptions = {}): Promise<PageRes
 
 export function getDashboardSummary(): Promise<DashboardSummary> {
   return request<DashboardSummary>("/v1/dashboard/summary");
+}
+
+export function getDashboardSubcontractors(): Promise<DashboardSubcontractorBreakdown[]> {
+  return request<DashboardSubcontractorBreakdown[]>("/v1/dashboard/subcontractors");
 }
 
 export function getPostventaItems(projectId: string, search = ""): Promise<PageResponse<PostventaItem>> {

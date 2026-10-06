@@ -1,6 +1,6 @@
 # Ingevec database ERD
 
-This diagram reflects the current `app` schema represented by the SQLAlchemy models and Alembic migrations through revision `20261005_0021`. Analytics views are not shown as physical tables; the reporting datasets are described below the diagram and in `docs/superset-analytics.md`.
+This diagram reflects the current `app` schema represented by the SQLAlchemy models and Alembic migrations through revision `20261006_0022`. Analytics views are not shown as physical tables; the reporting datasets are described below the diagram and in `docs/superset-analytics.md`.
 
 `PK` denotes a primary key, `FK` a foreign key, and `UK` a unique key. Attributes marked `nullable` are optional. Junction tables use composite primary keys. Crow's-foot relationships show whether the foreign key is required and whether multiple child rows are allowed.
 
@@ -15,7 +15,9 @@ erDiagram
     PROJECT ||--o{ POSTVENTA_ITEM : contains
     CLASSIFICATION ||--o{ POSTVENTA_ITEM : classifies
     ITEM_TYPE ||--o{ POSTVENTA_ITEM : types
-    SUBCONTRACTOR o|--o{ POSTVENTA_ITEM : performs
+    SPECIALITY ||--o{ SUBCONTRACTOR : classifies
+    SUBCONTRACTOR ||--o{ PROJECT_SUBCONTRACTOR : assigned
+    PROJECT ||--o{ PROJECT_SUBCONTRACTOR : uses
     EXCEL_IMPORT ||--o{ EXCEL_SOURCE_ROW : stages
     EXCEL_SOURCE_ROW o|--o| POSTVENTA_ITEM : normalizes_to
     FAILURE_CAUSE_CATEGORY ||--o{ FAILURE_CAUSE_CATEGORY_LINK : includes
@@ -66,9 +68,18 @@ erDiagram
         int id PK
         varchar name
     }
+    SPECIALITY {
+        int id PK
+        varchar name
+    }
     SUBCONTRACTOR {
         int id PK
         varchar name
+        int speciality_id FK
+    }
+    PROJECT_SUBCONTRACTOR {
+        varchar project_id PK, FK
+        int subcontractor_id PK, FK
     }
     EXCEL_IMPORT {
         uuid id PK
@@ -145,7 +156,6 @@ erDiagram
         int classification_id FK
         int item_type_id FK
         int failure_cause_id FK "nullable; legacy primary cause"
-        int subcontractor_id FK "nullable"
         text notes
         date request_date "nullable"
         varchar handled_by "nullable"
@@ -200,3 +210,5 @@ erDiagram
 Additional unique constraints: `excel_source_row` is unique on `(excel_import_id, sheet_name, row_number)`, and `document_outbox_event` is unique on `(document_id, subject)`.
 
 `failure_cause_group` is seeded with the three fixed groups: `EJECUCION` (Ejecución), `PROPIETARIO` (Propietario), and `DISENO` (Diseño). The codes are stable identifiers; `display_name_es` contains the accented labels `Propietario`, `Ejecución`, and `Diseño`. Group-to-category assignments are stored in `failure_cause_category_group_link`. Cause-level analytics includes these labels; because causes can have multiple categories and categories can have multiple groups, it must be treated as an item–cause–category–group grain. Group/category charts should use distinct item counts when aggregating across dimensions.
+
+Migration `20261006_0022` clears the legacy subcontractor catalog, removes its association from `postventa_item`, and creates the speciality-to-subcontractor and project-to-subcontractor relationships. Specialities, subcontractors, and project assignments are managed directly in the database. Excel imports preserve source cells, including subcontractor text, in `excel_source_row.raw_cells`; they do not create or update subcontractor records or project assignments.
