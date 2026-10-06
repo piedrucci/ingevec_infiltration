@@ -87,6 +87,7 @@ class KeycloakSecurityManager(SupersetSecurityManager):
         if table.schema != "analytics" or table.table_name not in {
             "postventa_item_dashboard",
             "postventa_item_cause_dashboard",
+            "postventa_item_cause_pareto",
         }:
             return filters
         role_names = {role.name for role in self.get_user_roles(g.user)}

@@ -14,6 +14,7 @@ ANALYTICS_SCHEMA = "analytics"
 ANALYTICS_VIEWS = (
     "postventa_item_dashboard",
     "postventa_item_cause_dashboard",
+    "postventa_item_cause_pareto",
 )
 VIEWER_ROLE = "Ingevec Viewer"
 BUILDER_ROLE = "Ingevec Dashboard Builder"
@@ -72,6 +73,21 @@ DATASET_METRICS = {
             "Asignaciones ítem–causa",
             "COUNT(DISTINCT (postventa_item_public_id, codigo_causa_falla))",
             "Distinct item/cause pairs, deduplicated across category and group memberships.",
+        ),
+    },
+    "postventa_item_cause_pareto": {
+        "items_per_cause": (
+            "Ítems por causa",
+            "COUNT(DISTINCT postventa_item_public_id)",
+            "Distinct items assigned to each cause; category and group joins do not inflate the count.",
+        ),
+        "cumulative_share": (
+            "Participación acumulada",
+            "100.0 * SUM(COUNT(DISTINCT postventa_item_public_id)) OVER "
+            "(ORDER BY COUNT(DISTINCT postventa_item_public_id) DESC "
+            "ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) / "
+            "NULLIF(SUM(COUNT(DISTINCT postventa_item_public_id)) OVER (), 0)",
+            "Cumulative share of distinct item/cause pairs after chart filters are applied.",
         ),
     },
 }
@@ -176,7 +192,7 @@ def _configure_metrics(dataset, view_name: str) -> None:
         metric.verbose_name = verbose_name
         metric.expression = expression
         metric.description = description
-        metric.metric_type = "count"
+        metric.metric_type = "expression" if metric_name == "cumulative_share" else "count"
         db.session.add(metric)
     db.session.commit()
 

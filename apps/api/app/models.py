@@ -17,7 +17,11 @@ class ProjectAdmin(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True); project_manager_id: Mapped[int] = mapped_column(ForeignKey('app.project_manager.id'), nullable=False); name: Mapped[str] = mapped_column(String(255), nullable=False)
 def _catalog(clsname, tablename):
     return type(clsname, (Base,), {'__tablename__':tablename, '__table_args__':{'schema':'app'}, 'id':mapped_column(Integer, primary_key=True), 'name':mapped_column(String(255), nullable=False)})
-Typology=_catalog('Typology','typology'); Location=_catalog('Location','location'); Supervisor=_catalog('Supervisor','supervisor'); Classification=_catalog('Classification','classification'); ItemType=_catalog('ItemType','item_type'); Subcontractor=_catalog('Subcontractor','subcontractor')
+Typology=_catalog('Typology','typology')
+class Location(Base):
+    __tablename__='location'; __table_args__={'schema':'app'}
+    id: Mapped[int] = mapped_column(Integer, primary_key=True); name: Mapped[str] = mapped_column(String(255), nullable=False); geographic_zone: Mapped[str | None] = mapped_column(String(255))
+Supervisor=_catalog('Supervisor','supervisor'); Classification=_catalog('Classification','classification'); ItemType=_catalog('ItemType','item_type'); Subcontractor=_catalog('Subcontractor','subcontractor')
 class ExcelImport(Base):
     __tablename__='excel_import'; __table_args__={'schema':'app'}
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4); original_filename: Mapped[str] = mapped_column(String(255), nullable=False); file_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False); status: Mapped[str] = mapped_column(String(32), nullable=False, default='RECEIVED'); source_sheet: Mapped[str] = mapped_column(String(128), nullable=False, default='Año 2026'); row_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0); imported_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -31,7 +35,7 @@ class Project(Base):
         Index('ix_project_id_trgm', 'id', postgresql_using='gin', postgresql_ops={'id': 'gin_trgm_ops'}),
         {'schema':'app'},
     )
-    id: Mapped[str] = mapped_column(String(100), primary_key=True); public_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), unique=True, default=uuid.uuid4, server_default=func.gen_random_uuid(), nullable=False); name: Mapped[str] = mapped_column(String(255), nullable=False); typology_id: Mapped[int] = mapped_column(ForeignKey('app.typology.id'), nullable=False); location_id: Mapped[int] = mapped_column(ForeignKey('app.location.id'), nullable=False); municipal_reception_date: Mapped[date | None] = mapped_column(Date); supervisor_id: Mapped[int] = mapped_column(ForeignKey('app.supervisor.id'), nullable=False); project_admin_id: Mapped[int | None] = mapped_column(ForeignKey('app.project_admin.id'))
+    id: Mapped[str] = mapped_column(String(100), primary_key=True); public_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), unique=True, default=uuid.uuid4, server_default=func.gen_random_uuid(), nullable=False); name: Mapped[str] = mapped_column(String(255), nullable=False); typology_id: Mapped[int] = mapped_column(ForeignKey('app.typology.id'), nullable=False); location_id: Mapped[int] = mapped_column(ForeignKey('app.location.id'), nullable=False); municipal_reception_date: Mapped[date | None] = mapped_column(Date); supervisor_id: Mapped[int] = mapped_column(ForeignKey('app.supervisor.id'), nullable=False); project_admin_id: Mapped[int | None] = mapped_column(ForeignKey('app.project_admin.id')); address: Mapped[str | None] = mapped_column(Text); latitude: Mapped[Decimal | None] = mapped_column(Numeric(10, 7)); longitude: Mapped[Decimal | None] = mapped_column(Numeric(10, 7))
 class FailureCauseCategory(Base):
     __tablename__ = 'failure_cause_category'
     __table_args__ = (UniqueConstraint('code', name='uq_failure_cause_category_code'), {'schema': 'app'})
