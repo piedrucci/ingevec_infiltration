@@ -34,6 +34,7 @@ from app.models import (
 from app.schemas import (
     DashboardSummary,
     DashboardSubcontractorBreakdown,
+    DashboardSubcontractorProject,
     DocumentAssociationItem,
     DocumentCandidate,
     DocumentCandidateResponse,
@@ -54,7 +55,7 @@ from app.schemas import (
     ProjectListItem,
     ProjectListResponse,
 )
-from app.services.dashboard import dashboard_subcontractors, dashboard_summary
+from app.services.dashboard import dashboard_subcontractor_projects, dashboard_subcontractors, dashboard_summary
 from app.services.dashboard_cache import invalidate_dashboard_summary
 from app.services.document_candidates import find_document_candidates
 from app.services.document_events import document_jetstream
@@ -453,6 +454,11 @@ def get_dashboard_summary(_: dict = Depends(require_admin), db: Session = Depend
 @dashboard_router.get("/subcontractors", response_model=list[DashboardSubcontractorBreakdown])
 def get_dashboard_subcontractors(_: dict = Depends(require_admin), db: Session = Depends(get_db)) -> list[DashboardSubcontractorBreakdown]:
     return dashboard_subcontractors(db)
+
+
+@dashboard_router.get("/subcontractors/{subcontractor_id}/projects", response_model=list[DashboardSubcontractorProject])
+def get_dashboard_subcontractor_projects(subcontractor_id: int, _: dict = Depends(require_admin), db: Session = Depends(get_db)) -> list[DashboardSubcontractorProject]:
+    return dashboard_subcontractor_projects(db, subcontractor_id)
 
 
 @documents_router.get("/{document_public_id}/content", responses={404: {"description": "Document not found"}})

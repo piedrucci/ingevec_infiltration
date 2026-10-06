@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from app.schemas import DashboardAssociationBreakdown, DashboardBreakdown, DashboardSummary, DashboardSubcontractorBreakdown, DashboardTotals
+from app.schemas import DashboardAssociationBreakdown, DashboardBreakdown, DashboardSummary, DashboardSubcontractorBreakdown, DashboardSubcontractorProject, DashboardTotals
 from app.services.dashboard_cache import dashboard_cache_version, get_dashboard_summary, set_dashboard_summary
 
 
@@ -79,7 +79,7 @@ SELECT jsonb_build_object(
 """)
 
 _SUBCONTRACTORS_SQL = text("""
-SELECT sc.name, s.name AS speciality, COUNT(DISTINCT ps.project_id)::int AS project_count
+SELECT sc.id, sc.name, s.name AS speciality, COUNT(DISTINCT ps.project_id)::int AS project_count
 FROM app.subcontractor sc
 JOIN app.speciality s ON s.id = sc.speciality_id
 LEFT JOIN app.project_subcontractor ps ON ps.subcontractor_id = sc.id
@@ -91,6 +91,20 @@ ORDER BY project_count DESC, sc.name
 def dashboard_subcontractors(db: Session) -> list[DashboardSubcontractorBreakdown]:
     rows = db.execute(_SUBCONTRACTORS_SQL).mappings()
     return [DashboardSubcontractorBreakdown.model_validate(row) for row in rows]
+
+
+_SUBCONTRACTOR_PROJECTS_SQL = text("""
+SELECT p.id AS project_id, p.name AS project_name
+FROM app.project_subcontractor ps
+JOIN app.project p ON p.id = ps.project_id
+WHERE ps.subcontractor_id = :subcontractor_id
+ORDER BY p.id
+""")
+
+
+def dashboard_subcontractor_projects(db: Session, subcontractor_id: int) -> list[DashboardSubcontractorProject]:
+    rows = db.execute(_SUBCONTRACTOR_PROJECTS_SQL, {"subcontractor_id": subcontractor_id}).mappings()
+    return [DashboardSubcontractorProject.model_validate(row) for row in rows]
 
 
 def dashboard_summary(db: Session) -> DashboardSummary:

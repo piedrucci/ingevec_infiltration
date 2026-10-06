@@ -39,7 +39,8 @@ export type PostventaItem = {
 export type PageResponse<T> = { items: T[]; page: Page };
 
 export type DashboardBreakdown = { name: string; count: number };
-export type DashboardSubcontractorBreakdown = { name: string; speciality: string; project_count: number };
+export type DashboardSubcontractorBreakdown = { id: number; name: string; speciality: string; project_count: number };
+export type DashboardSubcontractorProject = { project_id: string; project_name: string };
 export type DashboardAssociationBreakdown = {
   project_manager_id: number | null;
   name: string;

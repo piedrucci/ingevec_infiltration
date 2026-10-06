@@ -3,9 +3,10 @@ import { createPaginatedRowModel, flexRender, tableFeatures, type ColumnDef, typ
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { DashboardAssociationBreakdown, DashboardBreakdown, DashboardSubcontractorBreakdown } from "../../types";
 import { Link } from "react-router-dom";
-import { useDashboardSubcontractors, useDashboardSummary } from "../../queries/dashboard";
+import { useDashboardSubcontractorProjects, useDashboardSubcontractors, useDashboardSummary } from "../../queries/dashboard";
 import { Button } from "../../components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../components/ui/dialog";
 import { ErrorMessage, LoadingIndicator } from "../documents/components";
 
 const statusLabels: Record<string, string> = {
@@ -36,6 +37,7 @@ const subcontractorColumns: ColumnDef<StockFeatures, DashboardSubcontractorBreak
 function SubcontractorCard() {
   const query = useDashboardSubcontractors();
   const rows = query.data ?? [];
+  const [selectedSubcontractor, setSelectedSubcontractor] = useState<DashboardSubcontractorBreakdown | null>(null);
   const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 });
   useEffect(() => {
     setPagination((current) => ({ ...current, pageIndex: Math.min(current.pageIndex, Math.max(0, Math.ceil(rows.length / current.pageSize) - 1)) }));
@@ -49,6 +51,7 @@ function SubcontractorCard() {
     getRowId: (row) => row.name,
   });
   const pageRows = table.getRowModel().rows;
+  const projectQuery = useDashboardSubcontractorProjects(selectedSubcontractor?.id ?? null);
 
   return <section className="card breakdown-card subcontractor-card">
     <div className="section-title"><h2>Proyectos por subcontratista</h2><span>{query.isLoading ? "Cargando…" : `${rows.length} subcontratistas`}</span></div>
@@ -58,7 +61,12 @@ function SubcontractorCard() {
         <Table className="subcontractor-table">
           <TableHeader><TableRow><TableHead>Subcontratista</TableHead><TableHead>Especialidad</TableHead><TableHead className="text-right">Proyectos</TableHead></TableRow></TableHeader>
           <TableBody>
-            {pageRows.map((row) => <TableRow key={row.id}>
+            {pageRows.map((row) => <TableRow key={row.id} className="subcontractor-clickable-row" tabIndex={0} aria-label={`Ver proyectos de ${row.original.name}`} onClick={() => setSelectedSubcontractor(row.original)} onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                setSelectedSubcontractor(row.original);
+              }
+            }}>
               {row.getVisibleCells().map((cell) => <TableCell key={cell.id} className={cell.column.id === "project_count" ? "text-right tabular-nums" : undefined}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}
             </TableRow>)}
           </TableBody>
@@ -72,6 +80,18 @@ function SubcontractorCard() {
         </div>
       </div>
     </> : <p className="empty-state">Sin datos disponibles.</p>}
+    <Dialog open={selectedSubcontractor !== null} onOpenChange={(open) => { if (!open) setSelectedSubcontractor(null); }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{selectedSubcontractor?.name}</DialogTitle>
+          <DialogDescription>{selectedSubcontractor?.speciality} · {selectedSubcontractor?.project_count.toLocaleString("es-CL")} proyectos asociados</DialogDescription>
+        </DialogHeader>
+        {projectQuery.isLoading ? <div className="dialog-loading"><LoadingIndicator label="Cargando proyectos…" compact /></div> : projectQuery.error ? <ErrorMessage error={projectQuery.error} /> : projectQuery.data?.length ? <Table className="subcontractor-project-table">
+          <TableHeader><TableRow><TableHead>N° Obra</TableHead><TableHead>Proyecto</TableHead></TableRow></TableHeader>
+          <TableBody>{projectQuery.data.map((project) => <TableRow key={project.project_id}><TableCell className="tabular-nums">{project.project_id}</TableCell><TableCell>{project.project_name}</TableCell></TableRow>)}</TableBody>
+        </Table> : <p className="empty-state dialog-empty">No hay proyectos asociados a este subcontratista.</p>}
+      </DialogContent>
+    </Dialog>
   </section>;
 }
 

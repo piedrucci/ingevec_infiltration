@@ -15,9 +15,15 @@ class DashboardBreakdown(BaseModel):
 
 
 class DashboardSubcontractorBreakdown(BaseModel):
+    id: int
     name: str
     speciality: str
     project_count: int
+
+
+class DashboardSubcontractorProject(BaseModel):
+    project_id: str
+    project_name: str
 
 
 class DashboardAssociationBreakdown(BaseModel):
