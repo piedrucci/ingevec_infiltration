@@ -16,6 +16,13 @@ This repository contains the backend and administrative UI for Ingevec post-sale
 - `compose*.yaml`, `Dockerfile`, `config/*.env.example`: local and production runtime configuration.
 - `data/`: sample/source workbooks. Treat these as business data; do not overwrite them during automated work. Database dumps in the repository are also business data and must not be regenerated or replaced casually.
 
+## Production deployment
+
+- Production runs as a Docker Compose stack in Dokploy on the Hostinger VPS. GitHub is the deployment source; `compose.yaml` is combined with `compose.prod.yaml`. See `docs/deployment.md` for the deployment procedure and production service domains.
+- The application database is Neon, not a database hosted on the VPS. Production credentials are stored in Dokploy environment variables; never add them to this file or Git.
+- Operational JSON files are business data and are git-ignored. Keep them private and mount or copy them into the target API container before running an import command.
+- VPS SSH connection details (host or alias, username, and remote paths) are not tracked in this repository. Obtain them from the authorized server configuration; do not infer or commit them.
+
 ## Working conventions
 
 - Python 3.12, FastAPI, SQLAlchemy 2.x typed mappings, Alembic, and PostgreSQL/Neon for the application database.
