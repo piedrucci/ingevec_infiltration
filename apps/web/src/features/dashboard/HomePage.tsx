@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { createPaginatedRowModel, flexRender, tableFeatures, type ColumnDef, type PaginationState, type StockFeatures, stockFeatures, useTable } from "@tanstack/react-table";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { createPaginatedRowModel, createSortedRowModel, flexRender, tableFeatures, type ColumnDef, type PaginationState, type SortingState, type StockFeatures, stockFeatures, useTable } from "@tanstack/react-table";
+import { ArrowDownUp, ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from "lucide-react";
 import type { DashboardAssociationBreakdown, DashboardBreakdown, DashboardSubcontractorBreakdown } from "../../types";
 import { Link } from "react-router-dom";
 import { useDashboardSubcontractorProjects, useDashboardSubcontractors, useDashboardSummary } from "../../queries/dashboard";
@@ -28,6 +28,7 @@ function BreakdownCard({ title, rows, total }: { title: string; rows: DashboardB
 }
 
 const subcontractorTableFeatures = tableFeatures({ ...stockFeatures, paginatedRowModel: createPaginatedRowModel() });
+const managerProgressTableFeatures = tableFeatures({ ...stockFeatures, sortedRowModel: createSortedRowModel() });
 const subcontractorColumns: ColumnDef<StockFeatures, DashboardSubcontractorBreakdown, unknown>[] = [
   { accessorKey: "name", header: "Subcontratista", enableSorting: false },
   { accessorKey: "speciality", header: "Especialidad", enableSorting: false },
@@ -95,9 +96,36 @@ function SubcontractorCard() {
   </section>;
 }
 
+function SortableHeader({ label, direction, onToggle }: { label: string; direction: false | "asc" | "desc"; onToggle: () => void }) {
+  const Icon = direction === "asc" ? ChevronUp : direction === "desc" ? ChevronDown : ArrowDownUp;
+  return <Button variant="ghost" size="sm" className="manager-progress-sort-button" aria-label={`Ordenar por ${label}`} onClick={onToggle}>
+    {label}<Icon aria-hidden="true" />
+  </Button>;
+}
+
+const managerProgressColumns: ColumnDef<StockFeatures, DashboardAssociationBreakdown, unknown>[] = [
+  { accessorKey: "name", header: ({ column }) => <SortableHeader label="Gerente de proyecto" direction={column.getIsSorted()} onToggle={() => column.toggleSorting(column.getIsSorted() === "asc")} />, cell: ({ row }) => row.original.project_manager_id !== null ? <Link className="manager-link" to={`/project-managers/${row.original.project_manager_id}/items`}>{row.original.name}</Link> : row.original.name },
+  { accessorKey: "items", header: ({ column }) => <SortableHeader label="Ítems" direction={column.getIsSorted()} onToggle={() => column.toggleSorting(column.getIsSorted() === "asc")} />, cell: ({ getValue }) => Number(getValue()).toLocaleString("es-CL") },
+  { accessorKey: "reconciled_items", header: ({ column }) => <SortableHeader label="Conciliados" direction={column.getIsSorted()} onToggle={() => column.toggleSorting(column.getIsSorted() === "asc")} />, cell: ({ getValue }) => Number(getValue()).toLocaleString("es-CL") },
+  { accessorKey: "pending_reconciliation_items", header: ({ column }) => <SortableHeader label="Pendientes" direction={column.getIsSorted()} onToggle={() => column.toggleSorting(column.getIsSorted() === "asc")} />, cell: ({ getValue }) => Number(getValue()).toLocaleString("es-CL") },
+  { accessorKey: "reconciliation_rate", header: ({ column }) => <SortableHeader label="Avance" direction={column.getIsSorted()} onToggle={() => column.toggleSorting(column.getIsSorted() === "asc")} />, cell: ({ getValue }) => {
+    const rate = Number(getValue());
+    return <div className="progress-cell"><div><strong>{(rate * 100).toFixed(1)}%</strong><div className="progress-track">{rate > 0 && <span style={{ width: `${rate * 100}%` }} />}</div></div></div>;
+  } },
+  { accessorKey: "associated_items", header: "Con PDF", enableSorting: false, cell: ({ getValue }) => Number(getValue()).toLocaleString("es-CL") },
+];
+
 function ProjectManagerProgressCard({ rows }: { rows: DashboardAssociationBreakdown[] }) {
+  const [sorting, setSorting] = useState<SortingState>([{ id: "pending_reconciliation_items", desc: true }]);
+  const table = useTable({
+    features: managerProgressTableFeatures,
+    data: rows,
+    columns: managerProgressColumns,
+    state: { sorting },
+    onSortingChange: setSorting,
+  });
   return <section className="card project-manager-progress"><div className="section-title"><div><h2>Avance por gerente de proyecto</h2><p className="muted">Ítems conciliados mediante una o más causas</p></div><span>{rows.length} gerentes</span></div>
-    {rows.length ? <div className="table-wrap"><table><thead><tr><th>Gerente de proyecto</th><th>Ítems</th><th>Conciliados</th><th>Pendientes</th><th>Avance</th><th>Con PDF</th></tr></thead><tbody>{rows.map((row) => <tr key={row.project_manager_id ?? "unassigned"}><td>{row.project_manager_id !== null ? <Link className="manager-link" to={`/project-managers/${row.project_manager_id}/items`}>{row.name}</Link> : row.name}</td><td>{row.items.toLocaleString("es-CL")}</td><td>{row.reconciled_items.toLocaleString("es-CL")}</td><td>{row.pending_reconciliation_items.toLocaleString("es-CL")}</td><td className="progress-cell"><div><strong>{(row.reconciliation_rate * 100).toFixed(1)}%</strong><div className="progress-track">{row.reconciliation_rate > 0 && <span style={{ width: `${row.reconciliation_rate * 100}%` }} />}</div></div></td><td>{row.associated_items.toLocaleString("es-CL")}</td></tr>)}</tbody></table></div> : <p className="empty-state">Sin datos disponibles.</p>}
+    {rows.length ? <div className="table-wrap"><Table className="manager-progress-table"><TableHeader>{table.getHeaderGroups().map((group) => <TableRow key={group.id}>{group.headers.map((header) => <TableHead key={header.id} aria-sort={header.column.getIsSorted() === "asc" ? "ascending" : header.column.getIsSorted() === "desc" ? "descending" : "none"}>{flexRender(header.column.columnDef.header, header.getContext())}</TableHead>)}</TableRow>)}</TableHeader><TableBody>{table.getRowModel().rows.map((row) => <TableRow key={row.id}>{row.getVisibleCells().map((cell) => <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}</TableRow>)}</TableBody></Table></div> : <p className="empty-state">Sin datos disponibles.</p>}
   </section>;
 }
 
