@@ -1,6 +1,6 @@
 import { queryOptions, useQuery } from "@tanstack/react-query";
 
-import { getPostventaItem, getPostventaItems, getPostventaItemsByProjectManager, searchPostventaItems, type PostventaItemSearchOptions } from "../api";
+import { getCategoryItems, getPostventaItem, getPostventaItems, getPostventaItemsByProjectManager, searchPostventaItems, type PostventaItemSearchOptions } from "../api";
 
 export const postventaItemQueryKeys = {
   all: ["postventa-items"] as const,
@@ -9,12 +9,30 @@ export const postventaItemQueryKeys = {
     [...postventaItemQueryKeys.all, "project-manager", projectManagerId, search, documentStatus, offset] as const,
   evaluationList: (options: PostventaItemSearchOptions) => [...postventaItemQueryKeys.all, "evaluation", options] as const,
   detail: (publicId: string) => [...postventaItemQueryKeys.all, "detail", publicId] as const,
+  byCategory: (categoryCode: string, causeCode: string) => [...postventaItemQueryKeys.all, "category", categoryCode, causeCode] as const,
 };
 
 export function postventaItemsQueryOptions(projectId: string, search = "") {
   return queryOptions({
     queryKey: [...postventaItemQueryKeys.byProject(projectId), search],
     queryFn: () => getPostventaItems(projectId, search),
+  });
+}
+
+export type CategoryItemSearchOptions = { causeCode: string | null; search: string; pageNumber: number; sortBy: "project_id" | "project_name" | "notes"; sortDirection: "asc" | "desc"; pageSize?: number };
+
+export function useItemsByCategory(categoryCode: string | null, options: CategoryItemSearchOptions) {
+  return useQuery({
+    queryKey: [...postventaItemQueryKeys.byCategory(categoryCode ?? "", options.causeCode ?? ""), options],
+    queryFn: () => getCategoryItems(categoryCode!, {
+      causeCode: options.causeCode ?? undefined,
+      search: options.search,
+      sortBy: options.sortBy,
+      sortDirection: options.sortDirection,
+      limit: options.pageSize ?? 10,
+      offset: (options.pageNumber - 1) * (options.pageSize ?? 10),
+    }),
+    enabled: Boolean(categoryCode),
   });
 }
 

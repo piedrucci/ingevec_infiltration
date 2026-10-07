@@ -51,10 +51,10 @@ SELECT jsonb_build_object(
     'project_managers', COALESCE((SELECT jsonb_agg(jsonb_build_object('name', name, 'count', count) ORDER BY count DESC, name) FROM (SELECT project_manager AS name, COUNT(*)::int AS count FROM base GROUP BY 1) grouped), '[]'::jsonb),
     'classifications', COALESCE((SELECT jsonb_agg(jsonb_build_object('name', name, 'count', count) ORDER BY count DESC, name) FROM (SELECT classification AS name, COUNT(*)::int AS count FROM base GROUP BY 1) grouped), '[]'::jsonb),
     'failure_cause_categories', COALESCE((
-      SELECT jsonb_agg(jsonb_build_object('name', name, 'count', count) ORDER BY count DESC, name)
+      SELECT jsonb_agg(jsonb_build_object('name', name, 'code', code, 'count', count) ORDER BY count DESC, name)
       FROM (
         -- Multiple causes in the same category count as one item.
-        SELECT fcc.display_name_es AS name, COUNT(DISTINCT pifc.postventa_item_id)::int AS count
+        SELECT fcc.display_name_es AS name, fcc.code AS code, COUNT(DISTINCT pifc.postventa_item_id)::int AS count
         FROM app.postventa_item_failure_cause pifc
         JOIN app.failure_cause_category_link fccl ON fccl.failure_cause_id = pifc.failure_cause_id
         JOIN app.failure_cause_category fcc ON fcc.id = fccl.category_id

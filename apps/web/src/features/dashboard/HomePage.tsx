@@ -18,11 +18,11 @@ function MetricCard({ label, value, detail }: { label: string; value: string | n
   return <article className="metric-card"><p>{label}</p><strong>{value}</strong>{detail && <span>{detail}</span>}</article>;
 }
 
-function BreakdownCard({ title, rows, total }: { title: string; rows: DashboardBreakdown[]; total: number }) {
+function BreakdownCard({ title, rows, total, categoryLinks = false }: { title: string; rows: DashboardBreakdown[]; total: number; categoryLinks?: boolean }) {
   return <section className="card breakdown-card"><div className="section-title"><h2>{title}</h2><span>{rows.length} grupos</span></div>
     {rows.length ? <ul className="breakdown-list">{rows.map((row) => {
       const percent = total ? (row.count / total) * 100 : 0;
-      return <li key={row.name}><div><span title={row.name}>{row.name}</span><strong>{row.count.toLocaleString("es-CL")} <small>({percent.toFixed(1)}%)</small></strong></div><div className="progress-track">{percent > 0 && <span style={{ width: `${percent}%` }} />}</div></li>;
+      return <li key={row.name}><div>{categoryLinks && row.code ? <Link to={`/items/categories?category=${encodeURIComponent(row.code)}`} title={`Ver ítems de ${row.name}`}>{row.name}</Link> : <span title={row.name}>{row.name}</span>}<strong>{row.count.toLocaleString("es-CL")} <small>({percent.toFixed(1)}%)</small></strong></div><div className="progress-track">{percent > 0 && <span style={{ width: `${percent}%` }} />}</div></li>;
     })}</ul> : <p className="empty-state">Sin datos disponibles.</p>}
   </section>;
 }
@@ -154,7 +154,7 @@ export function HomePage() {
       <BreakdownCard title="Ítems por gerente divisional" rows={breakdowns.division_managers ?? []} total={totals.items} />
       <BreakdownCard title="Ítems por gerente de proyecto" rows={breakdowns.project_managers ?? []} total={totals.items} />
       <BreakdownCard title="Ítems por clasificación" rows={breakdowns.classifications ?? []} total={totals.items} />
-      <BreakdownCard title="Items por Categoria" rows={breakdowns.failure_cause_categories ?? []} total={totals.items} />
+      <BreakdownCard title="Items por Categoria" rows={breakdowns.failure_cause_categories ?? []} total={totals.items} categoryLinks />
       <SubcontractorCard />
       <BreakdownCard title="Ítems por responsable" rows={breakdowns.handled_by ?? []} total={totals.items} />
       <BreakdownCard title="PDFs por estado" rows={Object.entries(totals.documents_by_status).map(([name, count]) => ({ name: statusLabels[name] ?? name, count }))} total={totals.documents} />

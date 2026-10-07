@@ -12,6 +12,33 @@ class HealthResponse(BaseModel):
 class DashboardBreakdown(BaseModel):
     name: str
     count: int
+    code: str | None = None
+
+
+class ItemCategoryOption(BaseModel):
+    code: str
+    display_name_es: str
+    is_active: bool
+
+
+class CategoryItemCause(BaseModel):
+    code: str
+    display_name_es: str
+
+
+class CategoryItem(BaseModel):
+    id: int
+    public_id: UUID
+    project_id: str
+    project_name: str
+    notes: str
+    failure_causes: list[CategoryItemCause]
+    has_document: bool
+
+
+class CategoryItemsResponse(BaseModel):
+    items: list[CategoryItem]
+    total: int
 
 
 class DashboardSubcontractorBreakdown(BaseModel):

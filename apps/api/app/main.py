@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import dashboard_router, documents_router, imports_router, postventa_items_router, projects_router
+from app.api import dashboard_router, documents_router, imports_router, item_categories_router, postventa_items_router, projects_router
 from app.core.config import get_settings
 from app.schemas import HealthResponse
 
@@ -21,6 +21,7 @@ app.include_router(documents_router, prefix=settings.API_PREFIX)
 app.include_router(projects_router, prefix=settings.API_PREFIX)
 app.include_router(postventa_items_router, prefix=settings.API_PREFIX)
 app.include_router(dashboard_router, prefix=settings.API_PREFIX)
+app.include_router(item_categories_router, prefix=settings.API_PREFIX)
 
 
 @app.get("/health", response_model=HealthResponse, tags=["health"])

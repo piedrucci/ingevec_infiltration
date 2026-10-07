@@ -33,6 +33,10 @@ from app.models import (
 )
 from app.schemas import (
     DashboardSummary,
+    CategoryItem,
+    CategoryItemCause,
+    CategoryItemsResponse,
+    ItemCategoryOption,
     DashboardSubcontractorBreakdown,
     DashboardSubcontractorProject,
     DocumentAssociationItem,
@@ -71,6 +75,7 @@ projects_router = APIRouter(prefix="/projects", tags=["projects"])
 postventa_items_router = APIRouter(prefix="/postventa-items", tags=["postventa-items"])
 documents_router = APIRouter(prefix="/documents", tags=["documents"])
 dashboard_router = APIRouter(prefix="/dashboard", tags=["dashboard"])
+item_categories_router = APIRouter(prefix="/item-categories", tags=["item-categories"])
 logger = logging.getLogger(__name__)
 
 
@@ -459,6 +464,99 @@ def get_dashboard_subcontractors(_: dict = Depends(require_admin), db: Session =
 @dashboard_router.get("/subcontractors/{subcontractor_id}/projects", response_model=list[DashboardSubcontractorProject])
 def get_dashboard_subcontractor_projects(subcontractor_id: int, _: dict = Depends(require_admin), db: Session = Depends(get_db)) -> list[DashboardSubcontractorProject]:
     return dashboard_subcontractor_projects(db, subcontractor_id)
+
+
+@item_categories_router.get("", response_model=list[ItemCategoryOption])
+def list_item_categories(_: dict = Depends(require_admin), db: Session = Depends(get_db)) -> list[ItemCategoryOption]:
+    rows = db.scalars(select(FailureCauseCategory).order_by(FailureCauseCategory.display_name_es)).all()
+    return [ItemCategoryOption(code=row.code, display_name_es=row.display_name_es, is_active=row.is_active) for row in rows]
+
+
+@item_categories_router.get("/{category_code}/causes", response_model=list[ItemCategoryOption])
+def list_category_causes(category_code: str, _: dict = Depends(require_admin), db: Session = Depends(get_db)) -> list[ItemCategoryOption]:
+    category = db.scalar(select(FailureCauseCategory).where(FailureCauseCategory.code == category_code))
+    if category is None:
+        raise HTTPException(status_code=404, detail="Category not found")
+    rows = db.scalars(
+        select(FailureCause).join(FailureCauseCategoryLink, FailureCauseCategoryLink.failure_cause_id == FailureCause.id)
+        .where(FailureCauseCategoryLink.category_id == category.id).order_by(FailureCause.display_name_es)
+    ).all()
+    return [ItemCategoryOption(code=row.code, display_name_es=row.display_name_es, is_active=row.is_active) for row in rows]
+
+
+@item_categories_router.get("/{category_code}/items", response_model=CategoryItemsResponse)
+def list_items_by_category(
+    category_code: str,
+    cause_code: str | None = None,
+    search: str | None = Query(default=None, max_length=100),
+    limit: int = Query(default=10, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    sort_by: str = Query(default="project_id", max_length=32),
+    sort_direction: str = Query(default="asc", max_length=4),
+    _: dict = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> CategoryItemsResponse:
+    category = db.scalar(select(FailureCauseCategory).where(FailureCauseCategory.code == category_code))
+    if category is None:
+        raise HTTPException(status_code=404, detail="Category not found")
+    category_cause = select(FailureCauseCategoryLink.failure_cause_id).where(
+        FailureCauseCategoryLink.category_id == category.id,
+        FailureCauseCategoryLink.failure_cause_id == PostventaItemFailureCause.failure_cause_id,
+    ).correlate(PostventaItemFailureCause).exists()
+    filters = [category_cause]
+    if cause_code:
+        cause = db.scalar(select(FailureCause).where(FailureCause.code == cause_code))
+        if cause is None:
+            raise HTTPException(status_code=404, detail="Cause not found")
+        linked = db.scalar(select(FailureCauseCategoryLink.category_id).where(
+            FailureCauseCategoryLink.category_id == category.id,
+            FailureCauseCategoryLink.failure_cause_id == cause.id,
+        ))
+        if linked is None:
+            raise HTTPException(status_code=422, detail="Cause does not belong to category")
+        filters.append(PostventaItemFailureCause.failure_cause_id == cause.id)
+    item_match = select(PostventaItemFailureCause.postventa_item_id).where(
+        PostventaItemFailureCause.postventa_item_id == PostventaItem.id, *filters
+    ).correlate(PostventaItem).exists()
+    item_filters = [item_match]
+    if search and search.strip():
+        term = f"%{search.strip()}%"
+        item_filters.append(or_(PostventaItem.project_id.ilike(term), Project.name.ilike(term), PostventaItem.notes.ilike(term)))
+    sort_columns = {
+        "project_id": PostventaItem.project_id,
+        "project_name": Project.name,
+        "notes": PostventaItem.notes,
+    }
+    if sort_by not in sort_columns:
+        raise HTTPException(status_code=422, detail="Invalid category item sort column")
+    if sort_direction not in {"asc", "desc"}:
+        raise HTTPException(status_code=422, detail="Invalid category item sort direction")
+    sort_column = sort_columns[sort_by]
+    sort_order = sort_column.asc() if sort_direction == "asc" else sort_column.desc()
+    total = db.scalar(
+        select(func.count(PostventaItem.id)).select_from(PostventaItem).join(Project, Project.id == PostventaItem.project_id).where(*item_filters)
+    ) or 0
+    rows = db.execute(
+        select(PostventaItem, Project.name,
+            select(DocumentPostventaItem.postventa_item_id).where(DocumentPostventaItem.postventa_item_id == PostventaItem.id).exists().label("has_document"))
+        .join(Project, Project.id == PostventaItem.project_id).where(*item_filters)
+        .order_by(sort_order, PostventaItem.id).limit(limit).offset(offset)
+    ).all()
+    item_ids = [item.id for item, *_ in rows]
+    causes_by_item: dict[int, list[CategoryItemCause]] = {item_id: [] for item_id in item_ids}
+    if item_ids:
+        cause_rows = db.execute(
+            select(PostventaItemFailureCause.postventa_item_id, FailureCause.code, FailureCause.display_name_es)
+            .join(FailureCause, FailureCause.id == PostventaItemFailureCause.failure_cause_id)
+            .where(PostventaItemFailureCause.postventa_item_id.in_(item_ids))
+            .order_by(PostventaItemFailureCause.postventa_item_id, FailureCause.display_name_es)
+        ).all()
+        for item_id, code, name in cause_rows:
+            causes_by_item[item_id].append(CategoryItemCause(code=code, display_name_es=name))
+    items = [CategoryItem(id=item.id, public_id=item.public_id, project_id=item.project_id, project_name=project_name,
+        notes=item.notes, failure_causes=causes_by_item[item.id], has_document=has_document)
+        for item, project_name, has_document in rows]
+    return CategoryItemsResponse(items=items, total=total)
 
 
 @documents_router.get("/{document_public_id}/content", responses={404: {"description": "Document not found"}})

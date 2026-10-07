@@ -1,5 +1,5 @@
 import { accessToken } from "./auth";
-import type { DashboardSubcontractorBreakdown, DashboardSubcontractorProject, DashboardSummary, Document, DocumentCandidateResponse, DocumentDetail, DocumentSummary, FailureCauseCategoryOption, FailureCauseOption, PageResponse, PostventaItem, Project } from "./types";
+import type { CategoryItemsResponse, DashboardSubcontractorBreakdown, DashboardSubcontractorProject, DashboardSummary, Document, DocumentCandidateResponse, DocumentDetail, DocumentSummary, FailureCauseCategoryOption, FailureCauseOption, ItemCategoryOption, PageResponse, PostventaItem, Project } from "./types";
 
 type ApiErrorDetail = string | { code?: string; document_public_id?: string; original_filename?: string };
 
@@ -207,6 +207,27 @@ export function getFailureCauses(): Promise<FailureCauseOption[]> {
 
 export function getFailureCauseCategories(): Promise<FailureCauseCategoryOption[]> {
   return request<FailureCauseCategoryOption[]>("/v1/documents/failure-cause-categories");
+}
+
+export function getItemCategories(): Promise<ItemCategoryOption[]> {
+  return request<ItemCategoryOption[]>("/v1/item-categories");
+}
+
+export function getCategoryCauses(categoryCode: string): Promise<ItemCategoryOption[]> {
+  return request<ItemCategoryOption[]>(`/v1/item-categories/${encodeURIComponent(categoryCode)}/causes`);
+}
+
+export function getCategoryItems(categoryCode: string, options: { causeCode?: string; search?: string; limit?: number; offset?: number; sortBy?: "project_id" | "project_name" | "notes"; sortDirection?: "asc" | "desc" } = {}): Promise<CategoryItemsResponse> {
+  const query = new URLSearchParams({
+    limit: String(options.limit ?? 10),
+    offset: String(options.offset ?? 0),
+    sort_by: options.sortBy ?? "project_id",
+    sort_direction: options.sortDirection ?? "asc",
+  });
+  if (options.causeCode) query.set("cause_code", options.causeCode);
+  if (options.search?.trim()) query.set("search", options.search.trim());
+  const suffix = `?${query}`;
+  return request<CategoryItemsResponse>(`/v1/item-categories/${encodeURIComponent(categoryCode)}/items${suffix}`);
 }
 
 export function createFailureCause(input: { code: string; displayNameEs: string; categoryCode: string; aliases: string[] }): Promise<FailureCauseOption> {
