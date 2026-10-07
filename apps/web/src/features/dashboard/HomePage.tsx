@@ -154,7 +154,7 @@ export function HomePage() {
       <BreakdownCard title="Ítems por gerente divisional" rows={breakdowns.division_managers ?? []} total={totals.items} />
       <BreakdownCard title="Ítems por gerente de proyecto" rows={breakdowns.project_managers ?? []} total={totals.items} />
       <BreakdownCard title="Ítems por clasificación" rows={breakdowns.classifications ?? []} total={totals.items} />
-      <BreakdownCard title="Ítems por tipo" rows={breakdowns.item_types ?? []} total={totals.items} />
+      <BreakdownCard title="Items por Categoria" rows={breakdowns.failure_cause_categories ?? []} total={totals.items} />
       <SubcontractorCard />
       <BreakdownCard title="Ítems por responsable" rows={breakdowns.handled_by ?? []} total={totals.items} />
       <BreakdownCard title="PDFs por estado" rows={Object.entries(totals.documents_by_status).map(([name, count]) => ({ name: statusLabels[name] ?? name, count }))} total={totals.documents} />

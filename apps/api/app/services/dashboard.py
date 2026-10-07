@@ -17,7 +17,6 @@ WITH base AS (
     COALESCE(NULLIF(BTRIM(dm.name), ''), 'Sin asignar') AS division_manager,
     COALESCE(NULLIF(BTRIM(pm.name), ''), 'Sin asignar') AS project_manager,
     COALESCE(NULLIF(BTRIM(c.name), ''), 'Sin asignar') AS classification,
-    COALESCE(NULLIF(BTRIM(it.name), ''), 'Sin asignar') AS item_type,
     COALESCE(NULLIF(BTRIM(pi.handled_by), ''), 'Sin asignar') AS handled_by,
     EXISTS (
       SELECT 1
@@ -35,7 +34,6 @@ WITH base AS (
   LEFT JOIN app.project_manager pm ON pm.id = pa.project_manager_id
   LEFT JOIN app.division_manager dm ON dm.id = pm.division_manager_id
   JOIN app.classification c ON c.id = pi.classification_id
-  JOIN app.item_type it ON it.id = pi.item_type_id
 ),
 documents AS (SELECT status, COUNT(*)::int AS count FROM app.document GROUP BY status)
 SELECT jsonb_build_object(
@@ -52,7 +50,17 @@ SELECT jsonb_build_object(
     'division_managers', COALESCE((SELECT jsonb_agg(jsonb_build_object('name', name, 'count', count) ORDER BY count DESC, name) FROM (SELECT division_manager AS name, COUNT(*)::int AS count FROM base GROUP BY 1) grouped), '[]'::jsonb),
     'project_managers', COALESCE((SELECT jsonb_agg(jsonb_build_object('name', name, 'count', count) ORDER BY count DESC, name) FROM (SELECT project_manager AS name, COUNT(*)::int AS count FROM base GROUP BY 1) grouped), '[]'::jsonb),
     'classifications', COALESCE((SELECT jsonb_agg(jsonb_build_object('name', name, 'count', count) ORDER BY count DESC, name) FROM (SELECT classification AS name, COUNT(*)::int AS count FROM base GROUP BY 1) grouped), '[]'::jsonb),
-    'item_types', COALESCE((SELECT jsonb_agg(jsonb_build_object('name', name, 'count', count) ORDER BY count DESC, name) FROM (SELECT item_type AS name, COUNT(*)::int AS count FROM base GROUP BY 1) grouped), '[]'::jsonb),
+    'failure_cause_categories', COALESCE((
+      SELECT jsonb_agg(jsonb_build_object('name', name, 'count', count) ORDER BY count DESC, name)
+      FROM (
+        -- Multiple causes in the same category count as one item.
+        SELECT fcc.display_name_es AS name, COUNT(DISTINCT pifc.postventa_item_id)::int AS count
+        FROM app.postventa_item_failure_cause pifc
+        JOIN app.failure_cause_category_link fccl ON fccl.failure_cause_id = pifc.failure_cause_id
+        JOIN app.failure_cause_category fcc ON fcc.id = fccl.category_id
+        GROUP BY fcc.id, fcc.display_name_es
+      ) grouped
+    ), '[]'::jsonb),
     'handled_by', COALESCE((SELECT jsonb_agg(jsonb_build_object('name', name, 'count', count) ORDER BY count DESC, name) FROM (SELECT handled_by AS name, COUNT(*)::int AS count FROM base GROUP BY 1) grouped), '[]'::jsonb)
   ),
   'project_manager_association_progress', COALESCE((
