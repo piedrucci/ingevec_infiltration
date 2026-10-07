@@ -23,7 +23,6 @@ export function ItemEvaluationPage() {
   const causesQuery = useFailureCauses();
   const categoriesQuery = useFailureCauseCategories();
   const [causeCodes, setCauseCodes] = useState<string[]>([]);
-  const [isAddingCause, setIsAddingCause] = useState(false);
   const [newCauseName, setNewCauseName] = useState("");
   const [newCauseCode, setNewCauseCode] = useState("");
   const [newCauseCategory, setNewCauseCategory] = useState("");
@@ -57,7 +56,7 @@ export function ItemEvaluationPage() {
     mutationFn: () => createFailureCause({ code: newCauseCode, displayNameEs: newCauseName, categoryCode: newCauseCategory, aliases: newCauseAliases.split(",").map((alias) => alias.trim()).filter(Boolean) }),
     onSuccess: async (cause) => {
       setCauseCodes((current) => current.includes(cause.code) ? current : [...current, cause.code]);
-      setNewCauseName(""); setNewCauseCode(""); setNewCauseCategory(""); setNewCauseAliases(""); setIsAddingCause(false);
+      setNewCauseName(""); setNewCauseCode(""); setNewCauseCategory(""); setNewCauseAliases("");
       await queryClient.invalidateQueries({ queryKey: documentQueryKeys.failureCauses() });
     },
   });
@@ -69,6 +68,57 @@ export function ItemEvaluationPage() {
 
   return <section className="review-layout">
     <section className="card"><div className="section-title"><div><Link className="back-link" to={returnTo}>← Volver a evaluación</Link><p className="eyebrow">OBRA {item.project_id} · ÍTEM {item.id}</p><h2>{item.project_name}</h2></div><ReconciliationBadge reconciled={item.reconciliation_status === "RECONCILED"} /></div><div className="detail-grid"><div className="detail-grid-full"><strong>Observación</strong><p>{item.notes}</p></div><div><strong>Clasificación</strong><p>{item.classification}</p></div><div><strong>Tipo</strong><p>{item.item_type}</p></div><div><strong>PDF asociado</strong><p>{item.has_document ? (item.document ? <span className="pdf-association-action"><Link to={`/documents/${item.document.public_id}/review`}>{item.document.original_filename}</Link><Button variant="ghost" size="icon" className="icon-danger-action" aria-label="Desasociar PDF" title="Desasociar PDF" disabled={removeDocumentMutation.isPending} onClick={removeDocument}>{removeDocumentMutation.isPending ? <LoadingIndicator label="Desasociando…" compact /> : <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false"><path d="m10 14 4-4" /><path d="m8.5 8.5-1-1a3 3 0 0 0-4.25 4.25l2.5 2.5A3 3 0 0 0 10 14.5l1-1" /><path d="m15.5 15.5 1 1a3 3 0 0 0 4.25-4.25l-2.5-2.5A3 3 0 0 0 14 9.5l-1 1" /></svg>}</Button></span> : "Sí") : "No"}</p></div></div><ErrorMessage error={removeDocumentMutation.error} /></section>
-    <section className="card"><div className="section-title"><div><p className="eyebrow">CONCILIACIÓN DIRECTA</p><h2>Causas de falla</h2></div><span>{causeCodes.length} seleccionada{causeCodes.length === 1 ? "" : "s"}</span></div><div className="review-form"><ErrorMessage error={causesQuery.error ?? categoriesQuery.error ?? saveMutation.error ?? createCauseMutation.error} /><label htmlFor="normalized-causes">Causas normalizadas</label><MultiSelectCombobox id="normalized-causes" options={causesQuery.data?.map((cause) => ({ value: cause.code, label: `${cause.category_name_es} · ${cause.display_name_es}` })) ?? []} value={causeCodes} onValueChange={setCauseCodes} placeholder="Selecciona causas" searchPlaceholder="Buscar causas…" emptyMessage="No se encontraron causas." disabled={causesQuery.isLoading} /><p className="muted">Busca y selecciona una o más causas. Puedes quitarlas desde las etiquetas seleccionadas.</p><div className="evaluation-actions"><Button disabled={!causeCodes.length || saveMutation.isPending} onClick={() => saveMutation.mutate(causeCodes)}>{saveMutation.isPending ? <LoadingIndicator label="Guardando…" compact /> : "Guardar causas"}</Button>{item.reconciliation_status === "RECONCILED" && <Button variant="secondary" disabled={saveMutation.isPending} onClick={clearCauses}>Quitar todas las causas</Button>}</div><Button variant="secondary" className="inline-action" onClick={() => setIsAddingCause((current) => !current)}>{isAddingCause ? "Cancelar nueva causa" : "Agregar nueva causa"}</Button>{isAddingCause && <fieldset className="new-cause-form"><legend>Nueva causa normalizada</legend><label>Nombre visible en español<Input value={newCauseName} onChange={(event) => { setNewCauseName(event.target.value); setNewCauseCode(suggestedCode(event.target.value)); }} /></label><label>Código para BI<Input value={newCauseCode} onChange={(event) => setNewCauseCode(suggestedCode(event.target.value))} /></label><label>Categoría<BaseSelect value={newCauseCategory || null} onValueChange={(value) => setNewCauseCategory(value ?? "")}><BaseSelectTrigger><BaseSelectValue placeholder="Selecciona una categoría" /></BaseSelectTrigger><BaseSelectContent>{categoriesQuery.data?.map((category) => <BaseSelectItem key={category.code} value={category.code}>{category.display_name_es}</BaseSelectItem>)}</BaseSelectContent></BaseSelect></label><label>Alias de detección (separados por coma)<input value={newCauseAliases} onChange={(event) => setNewCauseAliases(event.target.value)} /></label><Button disabled={!newCauseName || !newCauseCode || !newCauseCategory || createCauseMutation.isPending} onClick={() => createCauseMutation.mutate()}>{createCauseMutation.isPending ? <LoadingIndicator label="Creando causa…" compact /> : "Crear y seleccionar causa"}</Button></fieldset>}</div></section>
+    <section className="card">
+      <div className="section-title">
+        <div>
+          <p className="eyebrow">CONCILIACIÓN DIRECTA</p>
+          <h2>Causas de falla</h2>
+        </div>
+        <span>{causeCodes.length} seleccionada{causeCodes.length === 1 ? "" : "s"}</span>
+      </div>
+      <div className="review-form">
+        <ErrorMessage error={causesQuery.error ?? categoriesQuery.error ?? saveMutation.error ?? createCauseMutation.error} />
+        <div className="reconciliation-columns">
+          <section className="normalized-causes-block">
+            <label htmlFor="normalized-causes">Causas normalizadas</label>
+            <MultiSelectCombobox
+              id="normalized-causes"
+              options={causesQuery.data?.map((cause) => ({ value: cause.code, label: `${cause.category_name_es} · ${cause.display_name_es}` })) ?? []}
+              value={causeCodes}
+              onValueChange={setCauseCodes}
+              placeholder="Selecciona causas"
+              searchPlaceholder="Buscar causas…"
+              emptyMessage="No se encontraron causas."
+              disabled={causesQuery.isLoading}
+            />
+            <p className="muted">Busca y selecciona una o más causas. Puedes quitarlas desde las etiquetas seleccionadas.</p>
+            <div className="evaluation-actions">
+              <Button disabled={!causeCodes.length || saveMutation.isPending} onClick={() => saveMutation.mutate(causeCodes)}>
+                {saveMutation.isPending ? <LoadingIndicator label="Guardando…" compact /> : "Guardar causas"}
+              </Button>
+              {item.reconciliation_status === "RECONCILED" && (
+                <Button variant="secondary" disabled={saveMutation.isPending} onClick={clearCauses}>Quitar todas las causas</Button>
+              )}
+            </div>
+          </section>
+          <fieldset className="new-cause-form">
+            <legend>Nueva causa normalizada</legend>
+            <label>Nombre visible en español<Input value={newCauseName} onChange={(event) => { setNewCauseName(event.target.value); setNewCauseCode(suggestedCode(event.target.value)); }} /></label>
+            <label>Código para BI<Input value={newCauseCode} onChange={(event) => setNewCauseCode(suggestedCode(event.target.value))} /></label>
+            <label>
+              Categoría
+              <BaseSelect value={newCauseCategory || null} onValueChange={(value) => setNewCauseCategory(value ?? "")}>
+                <BaseSelectTrigger><BaseSelectValue placeholder="Selecciona una categoría" /></BaseSelectTrigger>
+                <BaseSelectContent>{categoriesQuery.data?.map((category) => <BaseSelectItem key={category.code} value={category.code}>{category.display_name_es}</BaseSelectItem>)}</BaseSelectContent>
+              </BaseSelect>
+            </label>
+            <label>Alias de detección (separados por coma)<input value={newCauseAliases} onChange={(event) => setNewCauseAliases(event.target.value)} /></label>
+            <Button disabled={!newCauseName || !newCauseCode || !newCauseCategory || createCauseMutation.isPending} onClick={() => createCauseMutation.mutate()}>
+              {createCauseMutation.isPending ? <LoadingIndicator label="Creando causa…" compact /> : "Crear y seleccionar causa"}
+            </Button>
+          </fieldset>
+        </div>
+      </div>
+    </section>
   </section>;
 }
