@@ -44,7 +44,7 @@ export function ProjectsPage() {
       header: "Causas",
       enableSorting: false,
       cell: ({ row }) => row.original.failure_causes.length
-        ? row.original.failure_causes.map((cause) => <span className="mr-1 mb-1 inline-block" key={cause.code}><Badge variant="secondary">{cause.display_name_es}</Badge></span>)
+        ? row.original.failure_causes.map((cause) => <span className="mr-1 mb-1 inline-block" key={cause.code}><Badge variant="secondary">{cause.category_name_es ? `${cause.category_name_es} · ${cause.display_name_es}` : cause.display_name_es}</Badge></span>)
         : "Sin causa",
     },
     {
