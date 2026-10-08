@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { createSortedRowModel, flexRender, sortFn_alphanumeric, tableFeatures, type ColumnDef, type PaginationState, type SortingState, type StockFeatures, stockFeatures, useTable } from "@tanstack/react-table";
-import { ChevronLeft, ChevronRight, ChevronsUpDown } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsUpDown, Pencil } from "lucide-react";
 import { useItemsByCategory } from "../../queries/postventa-items";
 import type { CategoryItem } from "../../types";
 import { useItemCategories, useCategoryCauses } from "./queries";
@@ -62,10 +62,10 @@ export function CategoryItemsPage() {
   const columns = useMemo<ColumnDef<StockFeatures, CategoryItem, unknown>[]>(() => [
     { accessorKey: "project_id", header: ({ column }) => <SortHeader label="N Obra" column={column} /> },
     { accessorKey: "project_name", header: ({ column }) => <SortHeader label="Proyecto" column={column} /> },
-    { accessorKey: "notes", header: ({ column }) => <SortHeader label="Observación" column={column} /> },
+    { accessorKey: "notes", header: ({ column }) => <SortHeader label="Observación" column={column} />, cell: ({ row }) => <span className="block max-w-[32rem] truncate" title={row.original.notes}>{row.original.notes}</span> },
     { id: "causes", header: "Causas", enableSorting: false, cell: ({ row }) => row.original.failure_causes.map((cause) => <Badge className="mr-1 mb-1" key={cause.code} variant="secondary">{cause.display_name_es}</Badge>) },
     { id: "pdf", header: "PDF", enableSorting: false, cell: ({ row }) => row.original.has_document ? "Sí" : "No" },
-    { id: "action", header: "", enableSorting: false, cell: ({ row }) => <Link className="button-link" to={`/items/${row.original.public_id}/evaluation?returnTo=${encodeURIComponent(`${location.pathname}${location.search}`)}`}>Evaluar</Link> },
+    { id: "action", header: "", enableSorting: false, cell: ({ row }) => <Link className="icon-action-link" aria-label="Evaluar ítem" title="Evaluar ítem" to={`/items/${row.original.public_id}/evaluation?returnTo=${encodeURIComponent(`${location.pathname}${location.search}`)}`}><Pencil aria-hidden="true" /></Link> },
   ], []);
   const table = useTable({
     features,

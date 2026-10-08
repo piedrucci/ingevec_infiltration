@@ -1,5 +1,6 @@
 import { type FormEvent, useCallback, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { ColumnDef, SortingState, StockFeatures } from "@tanstack/react-table";
 
 import { getDocumentPdf } from "../../api";
@@ -15,6 +16,7 @@ import { Input } from "../../components/ui/input";
 
 const formatDate = (value: string | null) => value ? new Intl.DateTimeFormat("es-CL").format(new Date(`${value}T00:00:00`)) : "-";
 const PAGE_SIZE = 50;
+const ITEM_PAGE_SIZE = 10;
 const sortableProjectColumns = new Set(["id", "name", "typology", "location", "supervisor", "project_manager", "project_admin"]);
 
 export function ProjectsPage() {
@@ -23,6 +25,10 @@ export function ProjectsPage() {
   const search = searchParams.get("q") ?? "";
   const selectedProjectId = searchParams.get("project");
   const itemSearch = searchParams.get("item_q") ?? "";
+  const requestedItemOffset = Number(searchParams.get("item_offset") ?? "0");
+  const itemOffset = Number.isSafeInteger(requestedItemOffset) && requestedItemOffset >= 0 ? requestedItemOffset : 0;
+  const itemSortBy = "notes" as const;
+  const itemSortDirection = searchParams.get("item_dir") === "desc" ? "desc" : "asc";
   const requestedOffset = Number(searchParams.get("offset") ?? "0");
   const offset = Number.isSafeInteger(requestedOffset) && requestedOffset >= 0 ? requestedOffset : 0;
   const requestedSort = searchParams.get("sort") ?? "id";
@@ -34,8 +40,9 @@ export function ProjectsPage() {
   const projects = projectsQuery.data?.items ?? [];
   const totalProjects = projectsQuery.data?.page.total ?? 0;
   const selectedProject = projects.find((project) => project.id === selectedProjectId) ?? null;
-  const itemsQuery = usePostventaItems(selectedProject?.id ?? null, itemSearch);
+  const itemsQuery = usePostventaItems(selectedProject?.id ?? null, itemSearch, { limit: ITEM_PAGE_SIZE, offset: itemOffset, sortBy: itemSortBy, sortDirection: itemSortDirection });
   const items = itemsQuery.data?.items ?? [];
+  const totalItems = itemsQuery.data?.page.total ?? 0;
 
   const openDocument = useCallback(async (documentPublicId: string) => {
     setDocumentError(null);
@@ -66,10 +73,8 @@ export function ProjectsPage() {
     { accessorKey: "project_admin", header: "Administrador de proyecto", cell: ({ getValue }) => getValue<string>() || "-" },
   ], []);
   const itemColumns = useMemo<ColumnDef<StockFeatures, PostventaItem, unknown>[]>(() => [
-    { accessorKey: "id", header: "Ítem", enableSorting: false },
-    { accessorKey: "notes", header: "Observación", enableSorting: false },
+    { accessorKey: "notes", header: "Observación" },
     { accessorKey: "classification", header: "Clasificación", enableSorting: false },
-    { accessorKey: "item_type", header: "Tipo", enableSorting: false },
     {
       id: "causes",
       header: "Causas",
@@ -112,7 +117,7 @@ export function ProjectsPage() {
     <section className="toolbar"><form onSubmit={submitSearch}><label htmlFor="search">Buscar proyecto</label><Input id="search" value={search} onChange={(event) => updateUrlParams({ q: event.target.value, project: null })} placeholder="Ej. 712 o PAM" /><Button type="submit">Buscar</Button></form></section>
     <ErrorMessage error={documentError ?? projectsQuery.error ?? itemsQuery.error} />
     {(projectsQuery.isLoading || itemsQuery.isLoading) && <div className="loading-block"><LoadingIndicator label="Cargando información…" /></div>}
-    <section className="card"><div className="section-title"><h2>Proyectos</h2><span>{totalProjects.toLocaleString("es-CL")} proyectos</span></div><DataTable data={projects} columns={projectColumns} sorting={sorting} onSortingChange={(updater) => { const next = typeof updater === "function" ? updater(sorting) : updater; const first = next[0]; updateUrlParams({ sort: first?.id ?? "id", dir: first?.desc ? "desc" : "asc", offset: null }); }} getRowId={(project) => project.id} selectedRowId={selectedProject?.id ?? null} onRowClick={(row) => updateUrlParams({ project: row.original.id })} emptyMessage="No hay proyectos para la búsqueda seleccionada." /><div className="pagination"><Button variant="secondary" size="sm" disabled={!offset || projectsQuery.isFetching} onClick={() => updateUrlParams({ offset: Math.max(0, offset - PAGE_SIZE) })}>Anterior</Button><span>{totalProjects ? `${offset + 1}–${Math.min(offset + PAGE_SIZE, totalProjects)} de ${totalProjects}` : "0 proyectos"}</span><Button variant="secondary" size="sm" disabled={offset + PAGE_SIZE >= totalProjects || projectsQuery.isFetching} onClick={() => updateUrlParams({ offset: offset + PAGE_SIZE })}>Siguiente</Button></div></section>
-    {selectedProject && <section className="card"><div className="section-title"><div><p className="eyebrow">OBRA {selectedProject.id}</p><h2>{selectedProject.name}</h2></div><span>Recepción: {formatDate(selectedProject.municipal_reception_date)}</span></div><DataTable data={items} columns={itemColumns} globalFilter={itemSearch} onGlobalFilterChange={(updater) => updateUrlParams({ item_q: typeof updater === "function" ? updater(itemSearch) : updater })} globalFilterLabel="Buscar observación" globalFilterPlaceholder="Ej. humedad, cielo, ventana" getRowId={(item) => item.public_id} emptyMessage="No hay ítems asociados a esta obra." /></section>}
+    <section className="card"><div className="section-title"><h2>Proyectos</h2><span>{totalProjects.toLocaleString("es-CL")} proyectos</span></div><DataTable data={projects} columns={projectColumns} sorting={sorting} onSortingChange={(updater) => { const next = typeof updater === "function" ? updater(sorting) : updater; const first = next[0]; updateUrlParams({ sort: first?.id ?? "id", dir: first?.desc ? "desc" : "asc", offset: null }); }} getRowId={(project) => project.id} selectedRowId={selectedProject?.id ?? null} onRowClick={(row) => updateUrlParams({ project: row.original.id, item_offset: 0 })} emptyMessage="No hay proyectos para la búsqueda seleccionada." /><div className="pagination"><Button variant="secondary" size="sm" disabled={!offset || projectsQuery.isFetching} onClick={() => updateUrlParams({ offset: Math.max(0, offset - PAGE_SIZE) })}>Anterior</Button><span>{totalProjects ? `${offset + 1}–${Math.min(offset + PAGE_SIZE, totalProjects)} de ${totalProjects}` : "0 proyectos"}</span><Button variant="secondary" size="sm" disabled={offset + PAGE_SIZE >= totalProjects || projectsQuery.isFetching} onClick={() => updateUrlParams({ offset: offset + PAGE_SIZE })}>Siguiente</Button></div></section>
+    {selectedProject && <section className="card"><div className="section-title"><div><p className="eyebrow">OBRA {selectedProject.id}</p><h2>{selectedProject.name}</h2></div><span>Recepción: {formatDate(selectedProject.municipal_reception_date)}</span></div><div className="project-items-list"><DataTable data={items} columns={itemColumns} sorting={[{ id: itemSortBy, desc: itemSortDirection === "desc" }]} onSortingChange={(updater) => { const current = [{ id: itemSortBy, desc: itemSortDirection === "desc" }]; const next = typeof updater === "function" ? updater(current) : updater; const first = next[0]; updateUrlParams({ item_sort: "notes", item_dir: first?.desc ? "desc" : "asc", item_offset: 0 }); }} globalFilter={itemSearch} onGlobalFilterChange={(updater) => updateUrlParams({ item_q: typeof updater === "function" ? updater(itemSearch) : updater, item_offset: 0 })} globalFilterLabel="Buscar observación" globalFilterPlaceholder="Ej. humedad, cielo, ventana" getRowId={(item) => item.public_id} emptyMessage="No hay ítems asociados a esta obra." /></div><div className="pagination project-items-pagination"><Button variant="outline" size="icon" aria-label="Página anterior de ítems" disabled={!itemOffset || itemsQuery.isFetching} onClick={() => updateUrlParams({ item_offset: Math.max(0, itemOffset - ITEM_PAGE_SIZE) })}><ChevronLeft aria-hidden="true" /></Button><span>{totalItems ? `${itemOffset + 1}–${Math.min(itemOffset + ITEM_PAGE_SIZE, totalItems)} de ${totalItems}` : "0 ítems"}</span><Button variant="outline" size="icon" aria-label="Página siguiente de ítems" disabled={itemOffset + ITEM_PAGE_SIZE >= totalItems || itemsQuery.isFetching} onClick={() => updateUrlParams({ item_offset: itemOffset + ITEM_PAGE_SIZE })}><ChevronRight aria-hidden="true" /></Button></div></section>}
   </>;
 }

@@ -4,18 +4,22 @@ import { getCategoryItems, getPostventaItem, getPostventaItems, getPostventaItem
 
 export const postventaItemQueryKeys = {
   all: ["postventa-items"] as const,
-  byProject: (projectId: string) => [...postventaItemQueryKeys.all, "project", projectId] as const,
-  byProjectManager: (projectManagerId: number, search: string, documentStatus: string, offset: number) =>
-    [...postventaItemQueryKeys.all, "project-manager", projectManagerId, search, documentStatus, offset] as const,
+  byProject: (projectId: string, search: string, limit: number, offset: number) => [...postventaItemQueryKeys.all, "project", projectId, search, limit, offset] as const,
+  byProjectManager: (projectManagerId: number, options: { search: string; documentStatus: string; offset: number; sortBy: string; sortDirection: string }) =>
+    [...postventaItemQueryKeys.all, "project-manager", projectManagerId, options] as const,
   evaluationList: (options: PostventaItemSearchOptions) => [...postventaItemQueryKeys.all, "evaluation", options] as const,
   detail: (publicId: string) => [...postventaItemQueryKeys.all, "detail", publicId] as const,
   byCategory: (categoryCode: string, causeCode: string) => [...postventaItemQueryKeys.all, "category", categoryCode, causeCode] as const,
 };
 
-export function postventaItemsQueryOptions(projectId: string, search = "") {
+export function postventaItemsQueryOptions(projectId: string, search = "", options: { limit?: number; offset?: number; sortBy?: "project_id" | "notes"; sortDirection?: "asc" | "desc" } = {}) {
+  const limit = options.limit ?? 10;
+  const offset = options.offset ?? 0;
+  const sortBy = options.sortBy ?? "project_id";
+  const sortDirection = options.sortDirection ?? "asc";
   return queryOptions({
-    queryKey: [...postventaItemQueryKeys.byProject(projectId), search],
-    queryFn: () => getPostventaItems(projectId, search),
+    queryKey: [...postventaItemQueryKeys.byProject(projectId, search, limit, offset), sortBy, sortDirection],
+    queryFn: () => getPostventaItems(projectId, search, { limit, offset, sortBy, sortDirection }),
   });
 }
 
@@ -51,19 +55,19 @@ export function usePostventaItem(publicId: string | undefined) {
   });
 }
 
-export function usePostventaItems(projectId: string | null, search = "") {
+export function usePostventaItems(projectId: string | null, search = "", options: { limit?: number; offset?: number; sortBy?: "project_id" | "notes"; sortDirection?: "asc" | "desc" } = {}) {
   return useQuery({
-    ...postventaItemsQueryOptions(projectId ?? "", search),
+    ...postventaItemsQueryOptions(projectId ?? "", search, options),
     enabled: projectId !== null,
   });
 }
 
 export function usePostventaItemsByProjectManager(
   projectManagerId: number | null,
-  options: { search: string; documentStatus: string; offset: number },
+  options: { search: string; documentStatus: string; offset: number; sortBy: "project_id" | "notes"; sortDirection: "asc" | "desc" },
 ) {
   return useQuery({
-    queryKey: postventaItemQueryKeys.byProjectManager(projectManagerId ?? 0, options.search, options.documentStatus, options.offset),
+    queryKey: postventaItemQueryKeys.byProjectManager(projectManagerId ?? 0, options),
     queryFn: () => getPostventaItemsByProjectManager(projectManagerId!, options),
     enabled: projectManagerId !== null,
   });
