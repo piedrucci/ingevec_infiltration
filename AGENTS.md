@@ -16,6 +16,15 @@ This repository contains the backend and administrative UI for Ingevec post-sale
 - `compose*.yaml`, `Dockerfile`, `config/*.env.example`: local and production runtime configuration.
 - `data/`: sample/source workbooks. Treat these as business data; do not overwrite them during automated work. Database dumps in the repository are also business data and must not be regenerated or replaced casually.
 
+## Implementation rules
+
+Before implementing anything, read the relevant spec in `openspec/specs/`:
+
+- Frontend (`apps/web`): `openspec/specs/web-components/spec.md`
+- Backend (`apps/api`): `openspec/specs/api-backend/spec.md`
+
+Follow every requirement. If a request conflicts with a spec, explain the conflict before proceeding.
+
 ## Production deployment
 
 - Production runs as a Docker Compose stack in Dokploy on the Hostinger VPS. GitHub is the deployment source; `compose.yaml` is combined with `compose.prod.yaml`. See `docs/deployment.md` for the deployment procedure and production service domains.
