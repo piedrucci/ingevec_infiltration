@@ -63,7 +63,7 @@ export function getDashboardSubcontractorProjects(subcontractorId: number): Prom
   return request<DashboardSubcontractorProject[]>(`/v1/dashboard/subcontractors/${subcontractorId}/projects`);
 }
 
-export function getPostventaItems(projectId: string, search = "", options: { limit?: number; offset?: number; sortBy?: "project_id" | "notes"; sortDirection?: "asc" | "desc" } = {}): Promise<PageResponse<PostventaItem>> {
+export function getPostventaItems(projectId: string, search = "", options: { limit?: number; offset?: number; sortBy?: "project_id" | "notes" | "reconciliation_status"; sortDirection?: "asc" | "desc" } = {}): Promise<PageResponse<PostventaItem>> {
   const query = new URLSearchParams({ project_id: projectId, limit: String(options.limit ?? 10), offset: String(options.offset ?? 0), sort_by: options.sortBy ?? "project_id", sort_direction: options.sortDirection ?? "asc" });
   if (search.trim()) query.set("search", search.trim());
   return request<PageResponse<PostventaItem>>(`/v1/postventa-items?${query}`);

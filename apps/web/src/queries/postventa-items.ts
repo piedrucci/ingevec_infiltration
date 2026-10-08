@@ -12,7 +12,7 @@ export const postventaItemQueryKeys = {
   byCategory: (categoryCode: string, causeCode: string) => [...postventaItemQueryKeys.all, "category", categoryCode, causeCode] as const,
 };
 
-export function postventaItemsQueryOptions(projectId: string, search = "", options: { limit?: number; offset?: number; sortBy?: "project_id" | "notes"; sortDirection?: "asc" | "desc" } = {}) {
+export function postventaItemsQueryOptions(projectId: string, search = "", options: { limit?: number; offset?: number; sortBy?: "project_id" | "notes" | "reconciliation_status"; sortDirection?: "asc" | "desc" } = {}) {
   const limit = options.limit ?? 10;
   const offset = options.offset ?? 0;
   const sortBy = options.sortBy ?? "project_id";
@@ -55,7 +55,7 @@ export function usePostventaItem(publicId: string | undefined) {
   });
 }
 
-export function usePostventaItems(projectId: string | null, search = "", options: { limit?: number; offset?: number; sortBy?: "project_id" | "notes"; sortDirection?: "asc" | "desc" } = {}) {
+export function usePostventaItems(projectId: string | null, search = "", options: { limit?: number; offset?: number; sortBy?: "project_id" | "notes" | "reconciliation_status"; sortDirection?: "asc" | "desc" } = {}) {
   return useQuery({
     ...postventaItemsQueryOptions(projectId ?? "", search, options),
     enabled: projectId !== null,

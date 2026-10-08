@@ -24,7 +24,7 @@ export function ProjectsPage() {
   const itemSearch = searchParams.get("item_q") ?? "";
   const requestedItemOffset = Number(searchParams.get("item_offset") ?? "0");
   const itemOffset = Number.isSafeInteger(requestedItemOffset) && requestedItemOffset >= 0 ? requestedItemOffset : 0;
-  const itemSortBy = "notes" as const;
+  const itemSortBy = searchParams.get("item_sort") === "reconciliation_status" ? "reconciliation_status" : "notes";
   const itemSortDirection = searchParams.get("item_dir") === "desc" ? "desc" : "asc";
   const projectOptionsQuery = useProjects({ limit: 100, offset: 0, sortBy: "id", sortDirection: "asc" });
   const projectOptions = [
@@ -52,9 +52,8 @@ export function ProjectsPage() {
         : "Sin causa",
     },
     {
-      id: "status",
+      accessorKey: "reconciliation_status",
       header: "Estado",
-      enableSorting: false,
       cell: ({ row }) => {
         const reconciled = row.original.reconciliation_status === "RECONCILED";
         return <ReconciliationBadge reconciled={reconciled} />;
@@ -80,7 +79,7 @@ export function ProjectsPage() {
     {(projectOptionsQuery.isLoading || (selectedProject && itemsQuery.isLoading)) && <div className="loading-block"><LoadingIndicator label="Cargando información…" /></div>}
     {selectedProject && <section className="card">
           <div className="section-title"><div className="selected-project-title"><h2>{selectedProject.name}</h2><Badge variant="secondary">OBRA {selectedProject.id}</Badge></div><span>Recepción: {formatDate(selectedProject.municipal_reception_date)}</span></div>
-          <div className="project-items-list"><DataTable data={items} columns={itemColumns} sorting={[{ id: itemSortBy, desc: itemSortDirection === "desc" }]} onSortingChange={(updater) => { const current = [{ id: itemSortBy, desc: itemSortDirection === "desc" }]; const next = typeof updater === "function" ? updater(current) : updater; const first = next[0]; updateUrlParams({ item_sort: "notes", item_dir: first?.desc ? "desc" : "asc", item_offset: 0 }); }} globalFilter={itemSearch} onGlobalFilterChange={(updater) => updateUrlParams({ item_q: typeof updater === "function" ? updater(itemSearch) : updater, item_offset: 0 })} globalFilterLabel="Buscar observación" globalFilterPlaceholder="Ej. humedad, cielo, ventana" getRowId={(item) => item.public_id} emptyMessage="No hay ítems asociados a esta obra." /></div>
+          <div className="project-items-list"><DataTable data={items} columns={itemColumns} columnClassName={(columnId) => ({ notes: "w-1/2 max-w-[50%]", causes: "w-1/4", reconciliation_status: "w-[15%]", action: "w-[10%]" })[columnId]} sorting={[{ id: itemSortBy, desc: itemSortDirection === "desc" }]} onSortingChange={(updater) => { const current = [{ id: itemSortBy, desc: itemSortDirection === "desc" }]; const next = typeof updater === "function" ? updater(current) : updater; const first = next[0]; const nextSortBy = first?.id === "reconciliation_status" ? "reconciliation_status" : "notes"; updateUrlParams({ item_sort: nextSortBy, item_dir: first?.desc ? "desc" : "asc", item_offset: 0 }); }} globalFilter={itemSearch} onGlobalFilterChange={(updater) => updateUrlParams({ item_q: typeof updater === "function" ? updater(itemSearch) : updater, item_offset: 0 })} globalFilterLabel="Buscar observación" globalFilterPlaceholder="Ej. humedad, cielo, ventana" getRowId={(item) => item.public_id} emptyMessage="No hay ítems asociados a esta obra." /></div>
           <div className="pagination project-items-pagination"><Button variant="outline" size="icon" aria-label="Página anterior de ítems" disabled={!itemOffset || itemsQuery.isFetching} onClick={() => updateUrlParams({ item_offset: Math.max(0, itemOffset - ITEM_PAGE_SIZE) })}><ChevronLeft aria-hidden="true" /></Button><span>{totalItems ? `${itemOffset + 1}–${Math.min(itemOffset + ITEM_PAGE_SIZE, totalItems)} de ${totalItems}` : "0 ítems"}</span><Button variant="outline" size="icon" aria-label="Página siguiente de ítems" disabled={itemOffset + ITEM_PAGE_SIZE >= totalItems || itemsQuery.isFetching} onClick={() => updateUrlParams({ item_offset: itemOffset + ITEM_PAGE_SIZE })}><ChevronRight aria-hidden="true" /></Button></div>
     </section>}
   </>;
