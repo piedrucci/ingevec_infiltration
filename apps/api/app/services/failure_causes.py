@@ -38,7 +38,7 @@ def create_failure_cause(
     if db.scalar(select(FailureCause.id).where(FailureCause.code == code)) is not None:
         raise FileExistsError("A failure cause already uses that code")
 
-    normalized_aliases = {normalized_alias(alias) for alias in [display_name_es, *aliases] if normalized_alias(alias)}
+    normalized_aliases = {normalized_alias(alias) for alias in [f"{category.display_name_es} · {display_name_es}", *aliases] if normalized_alias(alias)}
     existing_alias = db.scalar(select(FailureCauseAlias).where(FailureCauseAlias.normalized_alias.in_(normalized_aliases))) if normalized_aliases else None
     if existing_alias is not None:
         raise FileExistsError("One of the aliases already belongs to another failure cause")

@@ -3,11 +3,16 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 
 import { ItemEvaluationPage } from "./ItemEvaluationPage";
 
 const { replaceCauses } = vi.hoisted(() => ({ replaceCauses: vi.fn() }));
+
+function LocationProbe() {
+  const location = useLocation();
+  return <p>{`${location.pathname}${location.search}`}</p>;
+}
 
 vi.mock("../../api", () => ({
   createFailureCause: vi.fn(),
@@ -63,15 +68,16 @@ describe("ItemEvaluationPage", () => {
     });
   });
 
-  it("saves every cause selected in the multi-select combobox", async () => {
+  it("saves selected causes and returns to the returnTo URL including its search query", async () => {
     const user = userEvent.setup();
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
     render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={["/items/item-123/evaluation"]}>
+        <MemoryRouter initialEntries={["/items/item-123/evaluation?returnTo=%2Fitems%2Fevaluation%3FpageNumber%3D2"]}>
           <Routes>
             <Route path="/items/:publicId/evaluation" element={<ItemEvaluationPage />} />
+            <Route path="/items/evaluation" element={<LocationProbe />} />
           </Routes>
         </MemoryRouter>
       </QueryClientProvider>,
@@ -90,5 +96,6 @@ describe("ItemEvaluationPage", () => {
     await waitFor(() => {
       expect(replaceCauses).toHaveBeenCalledWith("item-123", ["FILTRACION", "GRIETA"]);
     });
+    expect(await screen.findByText("/items/evaluation?pageNumber=2")).toBeTruthy();
   });
 });

@@ -117,13 +117,15 @@ def preview_replacement(db: Session, rows: list[dict[str, Any]]) -> PreviewSumma
             legacy_direct_cause_items += 1
         items_by_note[notes.strip()].append((item_id, direct_cause_id, row_hash))
 
-    cause_rows = db.execute(select(FailureCause.id, FailureCause.display_name_es)).all()
+    cause_rows = db.execute(select(FailureCause.id, FailureCause.display_name_es).where(FailureCause.is_active.is_(True))).all()
     cause_names_by_id = {cause_id: label for cause_id, label in cause_rows}
     causes_by_normalized_label: dict[str, dict[int, str]] = defaultdict(dict)
     for cause_id, label in cause_rows:
         causes_by_normalized_label[normalized_alias(label)][cause_id] = label
     alias_rows = db.execute(
         select(FailureCauseAlias.failure_cause_id, FailureCauseAlias.normalized_alias)
+        .join(FailureCause, FailureCause.id == FailureCauseAlias.failure_cause_id)
+        .where(FailureCause.is_active.is_(True))
     ).all()
     for cause_id, alias in alias_rows:
         causes_by_normalized_label[normalized_alias(alias)][cause_id] = cause_names_by_id[cause_id]

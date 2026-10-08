@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
 from app.models import FailureCause, FailureCauseCategory, FailureCauseCategoryLink
+from app.services.dashboard_cache import invalidate_dashboard_summary
 
 
 logger = logging.getLogger(__name__)
@@ -48,6 +49,12 @@ def load_mapping(path: Path) -> dict[str, list[str]]:
 
 def import_mapping(db: Session, mapping: dict[str, list[str]], *, dry_run: bool = False) -> ImportSummary:
     """Replace associations, skipping unknown codes and preserving one transaction."""
+    owners: dict[str, str] = {}
+    for category, codes in mapping.items():
+        for code in codes:
+            if code in owners and owners[code] != category:
+                raise ValueError(f"Cause {code} cannot belong to both {owners[code]} and {category}")
+            owners[code] = category
     category_codes = set(mapping)
     cause_codes = {cause_code for causes in mapping.values() for cause_code in causes}
     categories = {
@@ -86,6 +93,7 @@ def import_mapping(db: Session, mapping: dict[str, list[str]], *, dry_run: bool 
                 for category_code, cause_code in sorted(valid_pairs)
             ])
         db.commit()
+        invalidate_dashboard_summary()
 
     return ImportSummary(
         categories_processed=len(mapping),

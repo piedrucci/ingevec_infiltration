@@ -42,7 +42,7 @@ export type ProjectSearchOptions = {
 
 export function getProjects(options: ProjectSearchOptions = {}): Promise<PageResponse<Project>> {
   const query = new URLSearchParams({
-    limit: String(options.limit ?? 50),
+    limit: String(options.limit ?? 25),
     offset: String(options.offset ?? 0),
     sort_by: options.sortBy ?? "id",
     sort_direction: options.sortDirection ?? "asc",

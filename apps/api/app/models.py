@@ -59,7 +59,7 @@ class FailureCauseCategory(Base):
 
 class FailureCauseCategoryLink(Base):
     __tablename__ = 'failure_cause_category_link'
-    __table_args__ = {'schema': 'app'}
+    __table_args__ = (UniqueConstraint('failure_cause_id', name='uq_failure_cause_category_link_cause'), {'schema': 'app'})
 
     failure_cause_id: Mapped[int] = mapped_column(ForeignKey('app.failure_cause.id', ondelete='CASCADE'), primary_key=True)
     category_id: Mapped[int] = mapped_column(ForeignKey('app.failure_cause_category.id', ondelete='CASCADE'), primary_key=True)

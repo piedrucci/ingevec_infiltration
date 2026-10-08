@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { createFailureCause, removePostventaItemDocument, replacePostventaItemFailureCauses } from "../../api";
 import { postventaItemQueryKeys, usePostventaItem } from "../../queries/postventa-items";
@@ -16,6 +16,7 @@ const suggestedCode = (value: string) => value.normalize("NFD").replace(/[\u0300
 export function ItemEvaluationPage() {
   const { publicId } = useParams();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const requestedReturnTo = searchParams.get("returnTo");
   const returnTo = requestedReturnTo && requestedReturnTo.startsWith("/") && !requestedReturnTo.startsWith("//") ? requestedReturnTo : "/items/evaluation";
   const queryClient = useQueryClient();
@@ -35,12 +36,11 @@ export function ItemEvaluationPage() {
 
   const saveMutation = useMutation({
     mutationFn: (codes: string[]) => replacePostventaItemFailureCauses(publicId!, codes),
-    onSuccess: async (updated) => {
+    onSuccess: (updated) => {
       setCauseCodes(updated.failure_causes.map((cause) => cause.code));
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: postventaItemQueryKeys.all }),
-        queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
-      ]);
+      void queryClient.invalidateQueries({ queryKey: postventaItemQueryKeys.all });
+      void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      navigate(returnTo, { replace: true });
     },
   });
   const removeDocumentMutation = useMutation({
