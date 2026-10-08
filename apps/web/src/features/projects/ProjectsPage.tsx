@@ -38,7 +38,11 @@ export function ProjectsPage() {
   const totalItems = itemsQuery.data?.page.total ?? 0;
 
   const itemColumns = useMemo<ColumnDef<StockFeatures, PostventaItem, unknown>[]>(() => [
-    { accessorKey: "notes", header: "Observación" },
+    {
+      accessorKey: "notes",
+      header: "Observación",
+      cell: ({ row }) => <span className="project-item-observation" title={row.original.notes}>{row.original.notes}</span>,
+    },
     {
       id: "causes",
       header: "Causas",
