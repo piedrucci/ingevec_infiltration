@@ -33,6 +33,7 @@ This repository contains the backend and administrative UI for Ingevec post-sale
 - Excel imports and PDF uploads are idempotent by SHA-256. Preserve duplicate detection when changing ingestion.
 - Authentication defaults to deny. Administrative ingestion endpoints must retain `require_admin`.
 - Add a migration for every database schema change. Do not edit an already-applied migration in a deployed environment.
+- Alembic tracks revisions in `public.alembic_version`; configure `version_table_schema="public"` in both online and offline migration contexts. Application connections may use `search_path=app`, which must not hide migration history. If Alembic attempts the initial migration on an existing database, inspect the version table and connection before retrying; do not stamp a revision to bypass the discrepancy.
 - Keep environment secrets out of Git. Update both environment examples whenever a required setting is added.
 - Keep uploaded documents and source workbooks in private object storage. Do not expose SeaweedFS objects through a public path or commit storage credentials.
 - Each cause may link to only one category through `app.failure_cause_category_link` (unique `failure_cause_id`); keep this junction table. Items may have multiple causes from different categories. Retired shared causes are inactive and have no category links. Category-qualified aliases distinguish causes with the same display name. See `docs/cause-category-split.md` before applying migration `20261008_0023`.

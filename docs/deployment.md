@@ -47,6 +47,13 @@ Después crea los usuarios y grupos de producción y asigna los roles `admin`,
 
 ## Operación y recuperación
 
+Alembic mantiene el historial en `public.alembic_version`, con
+`version_table_schema="public"` configurado explícitamente en
+`apps/api/migrations/env.py`. Esto permite ejecutar migraciones aunque la conexión
+de la aplicación use `search_path=app`. Si Alembic intenta ejecutar la migración
+inicial sobre una base existente, verifica el historial y la conexión antes de
+reintentar; no uses `alembic stamp` para ocultar la discrepancia.
+
 Usa redeploy desde Dokploy después de cada versión publicada. Antes de actualizar,
 confirma que los volúmenes persistentes están incluidos en los snapshots de
 Hostinger. Neon mantiene la recuperación de las bases de aplicación y Superset;
