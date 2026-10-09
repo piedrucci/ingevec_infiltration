@@ -21,6 +21,8 @@ PROXY_FIX_CONFIG = {
 
 PREFERRED_URL_SCHEME = "https"
 FEATURE_FLAGS = {"ENABLE_TEMPLATE_PROCESSING": False}
+APP_NAME = "Ingevec Postventa"
+APP_ICON = "/static/assets/images/ingevec_logo.png"
 
 # Offer English and Spanish in Superset's language picker. English remains the
 # default; each user can switch languages from the navigation bar.
