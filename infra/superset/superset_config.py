@@ -24,6 +24,35 @@ FEATURE_FLAGS = {"ENABLE_TEMPLATE_PROCESSING": False}
 APP_NAME = "Ingevec Postventa"
 APP_ICON = "/static/assets/images/ingevec_logo.png"
 
+# Dashboard Markdown images are restricted by Superset's Content Security
+# Policy. Allow the public web app host while retaining the other 4.1.2 rules.
+TALISMAN_CONFIG = {
+    "content_security_policy": {
+        "base-uri": ["'self'"],
+        "default-src": ["'self'"],
+        "img-src": [
+            "'self'",
+            "blob:",
+            "data:",
+            "https://apachesuperset.gateway.scarf.sh",
+            "https://static.scarf.sh/",
+            "https://app.capix.cloud",
+        ],
+        "worker-src": ["'self'", "blob:"],
+        "connect-src": [
+            "'self'",
+            "https://api.mapbox.com",
+            "https://events.mapbox.com",
+        ],
+        "object-src": "'none'",
+        "style-src": ["'self'", "'unsafe-inline'"],
+        "script-src": ["'self'", "'strict-dynamic'"],
+    },
+    "content_security_policy_nonce_in": ["script-src"],
+    "force_https": False,
+    "session_cookie_secure": False,
+}
+
 # Offer English and Spanish in Superset's language picker. English remains the
 # default; each user can switch languages from the navigation bar.
 BABEL_DEFAULT_LOCALE = "en"
