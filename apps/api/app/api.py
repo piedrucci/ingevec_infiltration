@@ -38,6 +38,7 @@ from app.schemas import (
     ItemCategoryOption,
     DashboardSubcontractorBreakdown,
     DashboardSubcontractorProject,
+    DashboardProjectProgressResponse,
     DocumentAssociationItem,
     DocumentCandidate,
     DocumentCandidateResponse,
@@ -58,7 +59,7 @@ from app.schemas import (
     ProjectListItem,
     ProjectListResponse,
 )
-from app.services.dashboard import dashboard_subcontractor_projects, dashboard_subcontractors, dashboard_summary
+from app.services.dashboard import dashboard_project_progress, dashboard_subcontractor_projects, dashboard_subcontractors, dashboard_summary
 from app.services.dashboard_cache import invalidate_dashboard_summary
 from app.services.document_candidates import find_document_candidates
 from app.services.document_events import document_jetstream
@@ -463,6 +464,21 @@ def get_dashboard_subcontractors(_: dict = Depends(require_admin), db: Session =
 @dashboard_router.get("/subcontractors/{subcontractor_id}/projects", response_model=list[DashboardSubcontractorProject])
 def get_dashboard_subcontractor_projects(subcontractor_id: int, _: dict = Depends(require_admin), db: Session = Depends(get_db)) -> list[DashboardSubcontractorProject]:
     return dashboard_subcontractor_projects(db, subcontractor_id)
+
+
+@dashboard_router.get("/projects", response_model=DashboardProjectProgressResponse)
+def get_dashboard_project_progress(
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    sort_by: str = Query(default="name", max_length=32),
+    sort_direction: str = Query(default="asc", max_length=4),
+    _: dict = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> DashboardProjectProgressResponse:
+    try:
+        return dashboard_project_progress(db, limit=limit, offset=offset, sort_by=sort_by, sort_direction=sort_direction)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @item_categories_router.get("", response_model=list[ItemCategoryOption])

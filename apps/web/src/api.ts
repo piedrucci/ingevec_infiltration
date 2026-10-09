@@ -1,5 +1,5 @@
 import { accessToken } from "./auth";
-import type { CategoryItemsResponse, DashboardSubcontractorBreakdown, DashboardSubcontractorProject, DashboardSummary, Document, DocumentCandidateResponse, DocumentDetail, DocumentSummary, FailureCauseCategoryOption, FailureCauseOption, ItemCategoryOption, PageResponse, PostventaItem, Project } from "./types";
+import type { CategoryItemsResponse, DashboardProjectProgressResponse, DashboardSubcontractorBreakdown, DashboardSubcontractorProject, DashboardSummary, Document, DocumentCandidateResponse, DocumentDetail, DocumentSummary, FailureCauseCategoryOption, FailureCauseOption, ItemCategoryOption, PageResponse, PostventaItem, Project } from "./types";
 
 type ApiErrorDetail = string | { code?: string; document_public_id?: string; original_filename?: string };
 
@@ -61,6 +61,11 @@ export function getDashboardSubcontractors(): Promise<DashboardSubcontractorBrea
 
 export function getDashboardSubcontractorProjects(subcontractorId: number): Promise<DashboardSubcontractorProject[]> {
   return request<DashboardSubcontractorProject[]>(`/v1/dashboard/subcontractors/${subcontractorId}/projects`);
+}
+
+export function getDashboardProjectProgress(options: { limit: number; offset: number; sortBy: string; sortDirection: "asc" | "desc" }): Promise<DashboardProjectProgressResponse> {
+  const query = new URLSearchParams({ limit: String(options.limit), offset: String(options.offset), sort_by: options.sortBy, sort_direction: options.sortDirection });
+  return request<DashboardProjectProgressResponse>(`/v1/dashboard/projects?${query}`);
 }
 
 export function getPostventaItems(projectId: string, search = "", options: { limit?: number; offset?: number; sortBy?: "project_id" | "notes" | "reconciliation_status"; sortDirection?: "asc" | "desc" } = {}): Promise<PageResponse<PostventaItem>> {

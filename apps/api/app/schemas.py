@@ -53,6 +53,15 @@ class DashboardSubcontractorProject(BaseModel):
     project_name: str
 
 
+class DashboardProjectProgress(BaseModel):
+    project_id: str
+    name: str
+    items: int
+    conciliated: int
+    pending: int
+    percentage: float
+
+
 class DashboardAssociationBreakdown(BaseModel):
     project_manager_id: int | None
     name: str
@@ -99,6 +108,11 @@ class PageMeta(BaseModel):
     total: int
     limit: int
     offset: int
+
+
+class DashboardProjectProgressResponse(BaseModel):
+    items: list[DashboardProjectProgress]
+    page: PageMeta
 
 
 class ProjectListItem(BaseModel):

@@ -2,10 +2,11 @@
 
 from datetime import datetime, timezone
 
-from sqlalchemy import text
+from sqlalchemy import case, func, select, text
 from sqlalchemy.orm import Session
 
-from app.schemas import DashboardAssociationBreakdown, DashboardBreakdown, DashboardSummary, DashboardSubcontractorBreakdown, DashboardSubcontractorProject, DashboardTotals
+from app.models import PostventaItem, PostventaItemFailureCause, Project
+from app.schemas import DashboardAssociationBreakdown, DashboardBreakdown, DashboardProjectProgress, DashboardProjectProgressResponse, DashboardSummary, DashboardSubcontractorBreakdown, DashboardSubcontractorProject, DashboardTotals, PageMeta
 from app.services.dashboard_cache import dashboard_cache_version, get_dashboard_summary, set_dashboard_summary
 
 
@@ -113,6 +114,61 @@ ORDER BY p.id
 def dashboard_subcontractor_projects(db: Session, subcontractor_id: int) -> list[DashboardSubcontractorProject]:
     rows = db.execute(_SUBCONTRACTOR_PROJECTS_SQL, {"subcontractor_id": subcontractor_id}).mappings()
     return [DashboardSubcontractorProject.model_validate(row) for row in rows]
+
+
+def dashboard_project_progress(db: Session, *, limit: int, offset: int, sort_by: str, sort_direction: str) -> DashboardProjectProgressResponse:
+    has_cause = select(PostventaItemFailureCause.postventa_item_id).where(
+        PostventaItemFailureCause.postventa_item_id == PostventaItem.id
+    ).exists()
+    item_count = func.count(PostventaItem.id)
+    conciliated_count = func.count(PostventaItem.id).filter(has_cause)
+    pending_count = func.count(PostventaItem.id).filter(~has_cause)
+    percentage = case(
+        (item_count > 0, conciliated_count * 100.0 / item_count),
+        else_=0.0,
+    )
+    sort_columns = {
+        "name": Project.name,
+        "items": item_count,
+        "conciliated": conciliated_count,
+        "pending": pending_count,
+        "percentage": percentage,
+    }
+    if sort_by not in sort_columns:
+        raise ValueError("Invalid project progress sort column")
+    if sort_direction not in {"asc", "desc"}:
+        raise ValueError("Invalid project progress sort direction")
+
+    total = db.scalar(select(func.count()).select_from(Project)) or 0
+    sort_column = sort_columns[sort_by]
+    primary_order = sort_column.asc() if sort_direction == "asc" else sort_column.desc()
+    if sort_by == "items":
+        order = [primary_order, conciliated_count.desc(), percentage.desc(), Project.name.asc(), Project.id.asc()]
+    elif sort_by == "percentage":
+        order = [primary_order, item_count.desc(), Project.name.asc(), Project.id.asc()]
+    elif sort_by == "name":
+        order = [primary_order, item_count.desc(), percentage.desc(), Project.id.asc()]
+    else:
+        order = [primary_order, Project.name.asc(), item_count.desc(), percentage.desc(), Project.id.asc()]
+    rows = db.execute(
+        select(
+            Project.id.label("project_id"),
+            Project.name,
+            item_count.label("items"),
+            conciliated_count.label("conciliated"),
+            pending_count.label("pending"),
+            percentage.label("percentage"),
+        )
+        .outerjoin(PostventaItem, PostventaItem.project_id == Project.id)
+        .group_by(Project.id, Project.name)
+        .order_by(*order)
+        .limit(limit)
+        .offset(offset)
+    ).mappings()
+    return DashboardProjectProgressResponse(
+        items=[DashboardProjectProgress.model_validate(row) for row in rows],
+        page=PageMeta(total=total, limit=limit, offset=offset),
+    )
 
 
 def dashboard_summary(db: Session) -> DashboardSummary:

@@ -43,6 +43,15 @@ export type CategoryItem = { id: number; public_id: string; project_id: string; 
 export type CategoryItemsResponse = { items: CategoryItem[]; total: number };
 export type DashboardSubcontractorBreakdown = { id: number; name: string; speciality: string; project_count: number };
 export type DashboardSubcontractorProject = { project_id: string; project_name: string };
+export type DashboardProjectProgress = {
+  project_id: string;
+  name: string;
+  items: number;
+  conciliated: number;
+  pending: number;
+  percentage: number;
+};
+export type DashboardProjectProgressResponse = PageResponse<DashboardProjectProgress>;
 export type DashboardAssociationBreakdown = {
   project_manager_id: number | null;
   name: string;

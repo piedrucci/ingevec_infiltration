@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { createPaginatedRowModel, createSortedRowModel, flexRender, tableFeatures, type ColumnDef, type PaginationState, type SortingState, type StockFeatures, stockFeatures, useTable } from "@tanstack/react-table";
 import { ArrowDownUp, ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from "lucide-react";
-import type { DashboardAssociationBreakdown, DashboardBreakdown, DashboardSubcontractorBreakdown } from "../../types";
+import type { DashboardAssociationBreakdown, DashboardBreakdown, DashboardProjectProgress, DashboardSubcontractorBreakdown } from "../../types";
 import { Link } from "react-router-dom";
-import { useDashboardSubcontractorProjects, useDashboardSubcontractors, useDashboardSummary } from "../../queries/dashboard";
+import { useDashboardProjectProgress, useDashboardSubcontractorProjects, useDashboardSubcontractors, useDashboardSummary } from "../../queries/dashboard";
 import { Button } from "../../components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../components/ui/dialog";
@@ -29,6 +29,7 @@ function BreakdownCard({ title, rows, total, categoryLinks = false }: { title: s
 
 const subcontractorTableFeatures = tableFeatures({ ...stockFeatures, sortedRowModel: createSortedRowModel(), paginatedRowModel: createPaginatedRowModel() });
 const managerProgressTableFeatures = tableFeatures({ ...stockFeatures, sortedRowModel: createSortedRowModel() });
+const projectProgressTableFeatures = tableFeatures({ ...stockFeatures, sortedRowModel: createSortedRowModel(), paginatedRowModel: createPaginatedRowModel() });
 const subcontractorColumns: ColumnDef<StockFeatures, DashboardSubcontractorBreakdown, unknown>[] = [
   { accessorKey: "name", header: ({ column }) => <SortableHeader label="Subcontratista" direction={column.getIsSorted()} onToggle={() => column.toggleSorting(column.getIsSorted() === "asc")} /> },
   { accessorKey: "speciality", header: ({ column }) => <SortableHeader label="Especialidad" direction={column.getIsSorted()} onToggle={() => column.toggleSorting(column.getIsSorted() === "asc")} /> },
@@ -129,6 +130,59 @@ function ProjectManagerProgressCard({ rows }: { rows: DashboardAssociationBreakd
   </section>;
 }
 
+const PROJECT_PAGE_SIZE = 20;
+const projectProgressColumns: ColumnDef<StockFeatures, DashboardProjectProgress, unknown>[] = [
+  { accessorKey: "name", header: ({ column }) => <SortableHeader label="Proyecto" direction={column.getIsSorted()} onToggle={() => column.toggleSorting(column.getIsSorted() === "asc")} />, cell: ({ row }) => <Link className="manager-link" to={`/projects?project=${encodeURIComponent(row.original.project_id)}`}>{row.original.name}</Link> },
+  { accessorKey: "items", header: ({ column }) => <SortableHeader label="Ítems" direction={column.getIsSorted()} onToggle={() => column.toggleSorting(column.getIsSorted() === "asc")} />, cell: ({ getValue }) => Number(getValue()).toLocaleString("es-CL") },
+  { accessorKey: "conciliated", header: ({ column }) => <SortableHeader label="Conciliados" direction={column.getIsSorted()} onToggle={() => column.toggleSorting(column.getIsSorted() === "asc")} />, cell: ({ getValue }) => Number(getValue()).toLocaleString("es-CL") },
+  { accessorKey: "pending", header: ({ column }) => <SortableHeader label="Pendientes" direction={column.getIsSorted()} onToggle={() => column.toggleSorting(column.getIsSorted() === "asc")} />, cell: ({ getValue }) => Number(getValue()).toLocaleString("es-CL") },
+  { accessorKey: "percentage", header: ({ column }) => <SortableHeader label="Porcentaje" direction={column.getIsSorted()} onToggle={() => column.toggleSorting(column.getIsSorted() === "asc")} />, cell: ({ getValue }) => {
+    const percentage = Number(getValue());
+    return <div className="min-w-[180px] [&>div]:grid [&>div]:grid-cols-[3.8rem_minmax(80px,1fr)] [&>div]:items-center [&>div]:gap-2 [&_strong]:text-sm"><div><strong>{percentage.toFixed(1)}%</strong><div className="progress-track">{percentage > 0 && <span style={{ width: `${percentage}%` }} />}</div></div></div>;
+  } },
+];
+
+function ProjectProgressCard() {
+  const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: PROJECT_PAGE_SIZE });
+  const [sorting, setSorting] = useState<SortingState>([{ id: "items", desc: true }]);
+  const sort = sorting[0] ?? { id: "items", desc: true };
+  const query = useDashboardProjectProgress({
+    limit: pagination.pageSize,
+    offset: pagination.pageIndex * pagination.pageSize,
+    sortBy: sort.id,
+    sortDirection: sort.desc ? "desc" : "asc",
+  });
+  const rows = query.data?.items ?? [];
+  const total = query.data?.page.total ?? 0;
+  const table = useTable({
+    features: projectProgressTableFeatures,
+    data: rows,
+    columns: projectProgressColumns,
+    state: { pagination, sorting },
+    rowCount: total,
+    manualPagination: true,
+    manualSorting: true,
+    autoResetPageIndex: false,
+    onPaginationChange: setPagination,
+    onSortingChange: (updater) => {
+      setSorting(updater);
+      setPagination((current) => ({ ...current, pageIndex: 0 }));
+    },
+    getRowId: (row) => row.project_id,
+  });
+
+  return <section className="mb-4 overflow-hidden rounded-[10px] border border-border bg-card shadow-sm">
+    <div className="flex items-center justify-between gap-4 px-5 py-4"><h2>Proyectos</h2><span className="text-sm text-muted-foreground">{query.isLoading ? "Cargando…" : `${total.toLocaleString("es-CL")} proyectos`}</span></div>
+    <ErrorMessage error={query.error} />
+    {query.isLoading ? <div className="px-5 py-4"><LoadingIndicator label="Cargando proyectos…" compact /></div> : rows.length ? <>
+      <Table className="min-w-[760px]"><TableHeader>{table.getHeaderGroups().map((group) => <TableRow key={group.id} className="hover:bg-transparent">{group.headers.map((header) => <TableHead key={header.id} aria-sort={header.column.getIsSorted() === "asc" ? "ascending" : header.column.getIsSorted() === "desc" ? "descending" : "none"} className={header.column.id === "name" ? "w-[44%]" : "text-right"}>{flexRender(header.column.columnDef.header, header.getContext())}</TableHead>)}</TableRow>)}</TableHeader>
+        <TableBody>{table.getRowModel().rows.map((row) => <TableRow key={row.id}>{row.getVisibleCells().map((cell) => <TableCell key={cell.id} className={cell.column.id === "name" ? "w-[44%]" : "text-right tabular-nums"}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}</TableRow>)}</TableBody>
+      </Table>
+      <div className="flex items-center justify-end gap-3 px-5 py-3"><span className="text-xs text-muted-foreground">{`${pagination.pageIndex * pagination.pageSize + 1}–${Math.min((pagination.pageIndex + 1) * pagination.pageSize, total)} de ${total}`}</span><div className="flex gap-2"><Button variant="outline" size="icon" aria-label="Página anterior de proyectos" disabled={!table.getCanPreviousPage() || query.isFetching} onClick={() => table.previousPage()}><ChevronLeft aria-hidden="true" /></Button><Button variant="outline" size="icon" aria-label="Página siguiente de proyectos" disabled={!table.getCanNextPage() || query.isFetching} onClick={() => table.nextPage()}><ChevronRight aria-hidden="true" /></Button></div></div>
+    </> : <p className="px-5 py-4 text-sm text-muted-foreground">No hay proyectos disponibles.</p>}
+  </section>;
+}
+
 export function HomePage() {
   const summaryQuery = useDashboardSummary();
   const summary = summaryQuery.data;
@@ -148,6 +202,7 @@ export function HomePage() {
     </section>
     <section className="mb-5 overflow-hidden rounded-[10px] border border-border bg-card shadow-sm"><div className="flex items-center justify-between gap-4 px-5 py-4"><h2>Avance de conciliación</h2><span className="text-sm text-muted-foreground">{(totals.reconciliation_rate * 100).toFixed(1)}%</span></div><div className="px-5 pb-5"><div className="progress-track large"><span style={{ width: `${totals.reconciliation_rate * 100}%` }} /></div><p className="muted mt-2">{totals.reconciled_items.toLocaleString("es-CL")} conciliados · {totals.pending_reconciliation_items.toLocaleString("es-CL")} pendientes</p></div></section>
     <ProjectManagerProgressCard rows={summary.project_manager_association_progress ?? []} />
+    <ProjectProgressCard />
     <section className="dashboard-grid">
       <BreakdownCard title="Ítems por gerente divisional" rows={breakdowns.division_managers ?? []} total={totals.items} />
       <BreakdownCard title="Ítems por gerente de proyecto" rows={breakdowns.project_managers ?? []} total={totals.items} />
