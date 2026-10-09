@@ -191,7 +191,7 @@ def disposable_database(monkeypatch):
     from sqlalchemy.orm import sessionmaker
     from app.db import Base
     from app.models import (
-        Classification, ExcelImport, ExcelSourceRow, FailureCause, ItemType,
+        Classification, ExcelImport, ExcelSourceRow, FailureCause,
         Location, Project, Supervisor, Typology,
     )
     engine = create_engine(url)
@@ -207,7 +207,7 @@ def disposable_database(monkeypatch):
     client.get_object.side_effect = lambda **kwargs: {"Body": io.BytesIO(b"pdf")}
     monkeypatch.setattr(command, "s3_client", lambda: client)
     with factory.begin() as db:
-        db.add_all([model(id=1, name="catalog") for model in (Classification, ItemType, Location, Supervisor, Typology)])
+        db.add_all([model(id=1, name="catalog") for model in (Classification, Location, Supervisor, Typology)])
         db.flush()
         db.add(Project(id="one", name="project", typology_id=1, location_id=1, supervisor_id=1))
         imported = ExcelImport(original_filename="source.xlsx", file_hash="hash", status="COMPLETED", row_count=2)
@@ -216,7 +216,7 @@ def disposable_database(monkeypatch):
         sources = [ExcelSourceRow(excel_import_id=imported.id, sheet_name="Año 2026", row_number=i, raw_cells={"notes": note}, row_hash=str(i), normalization_status="NORMALIZED") for i, note in ((1, "Keep"), (2, "Remove"))]
         db.add_all(sources)
         db.flush()
-        db.add_all([command.PostventaItem(id=i, notes=note, source_row_id=source.id, project_id="one", classification_id=1, item_type_id=1, failure_cause_id=None) for i, note, source in zip((1, 2), ("Keep", "Remove"), sources)])
+        db.add_all([command.PostventaItem(id=i, notes=note, source_row_id=source.id, project_id="one", classification_id=1, failure_cause_id=None) for i, note, source in zip((1, 2), ("Keep", "Remove"), sources)])
         db.add(FailureCause(id=1, code="CAUSE", display_name_es="Cause"))
         db.add_all([command.Document(id=i, bucket="test", object_key=f"{i}.pdf", original_filename=f"{i}.pdf", content_hash=hashlib.sha256(b"pdf").hexdigest() if i == 11 else str(i), file_size_bytes=3, content_type="application/pdf", status="MATCHED") for i in (10, 11, 12)])
         db.flush()

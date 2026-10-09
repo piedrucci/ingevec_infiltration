@@ -35,6 +35,23 @@ Database schema changes SHALL be represented by Alembic migrations.
 - **AND** an already-applied migration is never edited in a deployed environment
 - **AND** `alembic upgrade head` is verified against a disposable development database
 
+### Requirement: Schema changes update the ERD
+Whenever the database schema is changed, the database ERD in `docs/database-erd.md` SHALL be updated to reflect the resulting schema.
+
+#### Scenario: Updating the schema diagram
+- **WHEN** a database schema change is made, including adding, changing, or removing a table, column, constraint, or relationship
+- **THEN** `docs/database-erd.md` is updated in the same change to match the resulting schema
+- **AND** its documented Alembic revision is updated when the schema change adds a new migration
+
+### Requirement: Schema changes validate data-fetching queries
+When a database schema change can affect how application data is fetched, all relevant data-fetching queries SHALL be reviewed, adjusted to match the resulting schema, and validated against it.
+
+#### Scenario: Reviewing queries after a schema change
+- **WHEN** a table, column, constraint, or relationship used by a data-fetching query is added, changed, or removed
+- **THEN** the affected API, worker, analytics, and operational queries are reviewed
+- **AND** stale references are updated or removed
+- **AND** the affected queries are exercised against a database at the target migration revision
+
 #### Scenario: Version table
 - **WHEN** migration contexts are configured
 - **THEN** `version_table_schema="public"` is set in both online and offline contexts, so `search_path=app` cannot hide `public.alembic_version`
@@ -57,6 +74,14 @@ Excel and PDF ingestion SHALL use SHA-256 duplicate detection to remain idempote
 - **WHEN** an Excel file or PDF with an already-seen SHA-256 is uploaded
 - **THEN** duplicate detection prevents re-ingestion
 - **AND** changes to ingestion code preserve this behavior
+
+### Requirement: Postventa items exclude item-type catalog data
+The `app.item_type` table and `app.postventa_item.item_type_id` relationship SHALL NOT exist. Original workbook cells SHALL remain preserved in `app.excel_source_row.raw_cells` for provenance.
+
+#### Scenario: Import workbook rows
+- **WHEN** workbook rows are normalized into postventa items
+- **THEN** item type is not required to create the normalized item
+- **AND** the original source cells remain unchanged
 
 ### Requirement: Cause and category integrity
 Cause/category links SHALL preserve the following invariants:

@@ -29,7 +29,6 @@ vi.mock("../../queries/postventa-items", () => ({
       project_id: "722",
       project_name: "AKI KB Matta",
       classification: "Terminación",
-      item_type: "Daño",
       notes: "Observación de prueba",
       request_date: null,
       handled_by: null,

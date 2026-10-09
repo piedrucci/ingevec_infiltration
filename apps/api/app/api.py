@@ -21,7 +21,6 @@ from app.models import (
     FailureCause,
     FailureCauseCategory,
     FailureCauseCategoryLink,
-    ItemType,
     Location,
     PostventaItem,
     PostventaItemFailureCause,
@@ -727,7 +726,6 @@ def list_postventa_items(
             PostventaItem,
             Project.name.label("project_name"),
             Classification.name.label("classification"),
-            ItemType.name.label("item_type"),
             Document,
             cause_exists.label("is_reconciled"),
             document_exists.label("has_document"),
@@ -736,7 +734,6 @@ def list_postventa_items(
         .outerjoin(ProjectAdmin, ProjectAdmin.id == Project.project_admin_id)
         .outerjoin(ProjectManager, ProjectManager.id == ProjectAdmin.project_manager_id)
         .join(Classification, Classification.id == PostventaItem.classification_id)
-        .join(ItemType, ItemType.id == PostventaItem.item_type_id)
         .outerjoin(DocumentPostventaItem, DocumentPostventaItem.postventa_item_id == PostventaItem.id)
         .outerjoin(Document, Document.id == DocumentPostventaItem.document_id)
         .where(*filters)
@@ -754,7 +751,6 @@ def list_postventa_items(
                 project_id=item.project_id,
                 project_name=project_name,
                 classification=classification,
-                item_type=item_type,
                 notes=item.notes,
                 request_date=item.request_date,
                 handled_by=item.handled_by,
@@ -769,7 +765,7 @@ def list_postventa_items(
                     processed_at=document.processed_at,
                 ) if document else None,
             )
-            for item, project_name, classification, item_type, document, is_reconciled, has_document in rows
+            for item, project_name, classification, document, is_reconciled, has_document in rows
         ],
         page=PageMeta(total=total, limit=limit, offset=offset),
     )
@@ -787,21 +783,19 @@ def _postventa_item_detail(db: Session, public_id: UUID) -> PostventaItemListIte
             PostventaItem,
             Project.name.label("project_name"),
             Classification.name.label("classification"),
-            ItemType.name.label("item_type"),
             Document,
             cause_exists.label("is_reconciled"),
             document_exists.label("has_document"),
         )
         .join(Project, Project.id == PostventaItem.project_id)
         .join(Classification, Classification.id == PostventaItem.classification_id)
-        .join(ItemType, ItemType.id == PostventaItem.item_type_id)
         .outerjoin(DocumentPostventaItem, DocumentPostventaItem.postventa_item_id == PostventaItem.id)
         .outerjoin(Document, Document.id == DocumentPostventaItem.document_id)
         .where(PostventaItem.public_id == public_id)
     ).one_or_none()
     if row is None:
         raise HTTPException(status_code=404, detail="Postventa item not found")
-    item, project_name, classification, item_type, document, is_reconciled, has_document = row
+    item, project_name, classification, document, is_reconciled, has_document = row
     causes = _failure_cause_summaries(db, [item.id])[item.id]
     return PostventaItemListItem(
         id=item.id,
@@ -809,7 +803,6 @@ def _postventa_item_detail(db: Session, public_id: UUID) -> PostventaItemListIte
         project_id=item.project_id,
         project_name=project_name,
         classification=classification,
-        item_type=item_type,
         notes=item.notes,
         request_date=item.request_date,
         handled_by=item.handled_by,

@@ -10,7 +10,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models import (
-    Classification, DivisionManager, ExcelImport, ExcelSourceRow, ItemType,
+    Classification, DivisionManager, ExcelImport, ExcelSourceRow,
     Location, PostventaItem, Project, ProjectAdmin, ProjectManager,
     Supervisor, Typology,
 )
@@ -19,7 +19,7 @@ from app.services.dashboard_cache import invalidate_dashboard_summary
 SHEET = "Año 2026"
 REQUIRED_HEADERS = {
     "N° Obra", "Proyecto", "Tipologia Proyecto", "Ubicación Proyecto",
-    "Supervisor Pvta", "Clasificación", "Item", "Obs", "Fecha Solicitud",
+    "Supervisor Pvta", "Clasificación", "Obs", "Fecha Solicitud",
 }
 
 
@@ -152,15 +152,13 @@ def _normalize_row(db: Session, source: ExcelSourceRow, caches: dict) -> None:
     location = _catalog(db, Location, _value(raw, "Ubicación Proyecto"), caches)
     supervisor = _catalog(db, Supervisor, _value(raw, "Supervisor Pvta"), caches)
     classification = _catalog(db, Classification, _value(raw, "Clasificación"), caches)
-    # The workbook contains two Item columns; the second is the business item type.
-    item_type = _catalog(db, ItemType, _value(raw, "Item", occurrence=2), caches)
     work_number = project_identifier(_value(raw, "N° Obra"))
     project_name = clean(_value(raw, "Proyecto"))
     notes = clean(_value(raw, "Obs"))
     required = {
         "N° Obra": work_number, "Proyecto": project_name, "Tipologia Proyecto": typology,
         "Ubicación Proyecto": location, "Supervisor Pvta": supervisor,
-        "Clasificación": classification, "Item": item_type, "Obs": notes,
+        "Clasificación": classification, "Obs": notes,
     }
     missing = [name for name, value in required.items() if value is None]
     if missing:
@@ -198,7 +196,7 @@ def _normalize_row(db: Session, source: ExcelSourceRow, caches: dict) -> None:
         project.project_admin_id = project_admin.id
     db.add(PostventaItem(
         source_row_id=source.id, project_id=project.id, classification_id=classification.id,
-        item_type_id=item_type.id, notes=notes,
+        notes=notes,
         request_date=as_date(_value(raw, "Fecha Solicitud")),
         handled_by=clean(_value(raw, "Gestionado por")),
     ))

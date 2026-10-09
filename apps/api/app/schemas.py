@@ -212,7 +212,6 @@ class PostventaItemListItem(BaseModel):
     project_id: str
     project_name: str
     classification: str
-    item_type: str
     notes: str
     request_date: date | None
     handled_by: str | None

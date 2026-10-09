@@ -26,7 +26,6 @@ export type PostventaItem = {
   project_id: string;
   project_name: string;
   classification: string;
-  item_type: string;
   notes: string;
   request_date: string | null;
   handled_by: string | null;
