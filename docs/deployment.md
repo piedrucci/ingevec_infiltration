@@ -38,8 +38,72 @@ sobre las vistas publicadas.
    el bucket privado `capix-documents-production`.
 4. Configura volúmenes persistentes para `nats_data`, `redis_data`,
    `seaweedfs_data`, `keycloak_data`, `superset_db_data` y `superset_home`.
-5. Ejecuta una tarea temporal de migración con `api`: `alembic upgrade head`.
-6. Levanta el stack y verifica `https://api.capix.cloud/health`.
+5. Configura MIGRATION_DATABASE_URL con el endpoint directo y session-capable
+   de Neon; el gate mantiene un advisory lock de PostgreSQL.
+6. Valida los overlays Compose y realiza una primera actualización supervisada.
+   El servicio migrate usa la misma imagen que API y worker, que esperan a que
+   la migración finalice correctamente.
+7. Comprueba public.alembic_version, las lecturas autenticadas afectadas y
+   https://api.capix.cloud/health.
+
+## Migraciones en cada despliegue
+
+El Compose de producción define un servicio migrate de ejecución única. Antes
+de que API o worker nuevos arranquen, el servicio toma un advisory lock de
+PostgreSQL, vuelve a leer el historial, valida toda la cadena pendiente contra
+apps/api/migrations/migration_policy.json y ejecuta sólo revisiones marcadas
+auto_apply. La lista vacía actual es intencional: las revisiones no se aplican
+automáticamente hasta que se revisen y clasifiquen. Agrega cada nueva revisión
+al manifiesto sólo después de verificar que es compatible con la versión de
+aplicación todavía activa.
+
+MIGRATION_DATABASE_URL debe usar el endpoint de Neon que mantenga una sesión
+PostgreSQL durante el advisory lock, con los mismos permisos y base que
+DATABASE_URL. No imprimas ni confirmes la URL real. Una migración fallida,
+historial desconocido, varias cabezas, revisión no clasificada o política
+inconsistente bloquea el inicio de API y worker y falla el despliegue. El CLI no
+hace stamp, downgrade, retry automático ni imports de JSON.
+
+Usa despliegues Dokploy serializados: no debe comenzar una versión anterior
+mientras otra actualización esté aplicando cambios o reemplazando contenedores.
+Verifica en el Dokploy instalado que cada up vuelva a iniciar el servicio
+migrate completado y que su salida distinta de cero marque el despliegue como
+fallido. La documentación pública de Dokploy permite definir un comando Compose
+personalizado que reemplaza el predeterminado; conserva el comando completo y
+los argumentos de overlays, proyecto y redes si se cambia. El gate de Compose no
+promete reemplazo atómico ni que los contenedores anteriores sigan disponibles
+si la actualización falla.
+
+Antes de activar el gate en producción, ensáyalo en un deployment separado con
+una base desechable: primer arranque, redeploy sin cambios, nueva imagen,
+migración fallida y rechazo de una revisión manual/no clasificada. Prueba
+además las rutas autenticadas de lista/detalle de ítems, ítems por categoría,
+dashboard y vistas analíticas; un /health exitoso no basta para demostrar que
+las consultas funcionan.
+
+Las revisiones 20261008_0023 y 20261008_0024 permanecen manuales. Sigue
+docs/cause-category-split.md para preparar la revisión 0023. La revisión 0024
+elimina catálogo y datos de item type; requiere un punto de recuperación Neon
+verificado y una ventana coordinada con el código. Si el código antiguo aún
+consulta esa columna, detén API y worker antes de aplicar la migración y vuelve
+a iniciarlos sólo con una versión compatible. Nunca agregues una revisión de
+preparación de datos al manifiesto automático.
+
+Para aplicar manualmente la 0024 cuando producción esté exactamente en la
+0023, detén API y worker desde Dokploy, crea el punto de recuperación Neon y
+ejecuta desde la carpeta del proyecto en el VPS:
+
+```bash
+docker compose --env-file .env -f compose.yaml -f compose.prod.yaml stop api pdf-worker
+docker compose --env-file .env -f compose.yaml -f compose.prod.yaml run --rm --no-deps migrate alembic upgrade 20261008_0024
+docker compose --env-file .env -f compose.yaml -f compose.prod.yaml up -d api pdf-worker
+```
+
+Configura ENV_FILE=.env en el entorno de Dokploy. El segundo comando usa
+MIGRATION_DATABASE_URL a través de Alembic y ejecuta sólo la revisión
+solicitada; el tercer comando vuelve a pasar por el gate, que debe mostrar la
+base en la revisión del release. Si la base no está exactamente en 0023 o el
+comando falla, detente y revisa el historial y el runbook antes de continuar.
 
 Keycloak importa `infra/keycloak/realm-production.json` en el primer arranque.
 Después crea los usuarios y grupos de producción y asigna los roles `admin`,

@@ -1,0 +1,7 @@
+{
+  "auto_apply": [],
+  "manual": {
+    "20261008_0023": "Requires the reviewed category-specific cause split before application; see docs/cause-category-split.md.",
+    "20261008_0024": "Drops item-type data and requires a reviewed maintenance deployment with a Neon recovery point."
+  }
+}
