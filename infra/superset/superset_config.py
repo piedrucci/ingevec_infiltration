@@ -1,6 +1,7 @@
 import os
 import re
 from types import SimpleNamespace
+from urllib.parse import urlsplit
 
 import jwt
 from flask import g
@@ -20,7 +21,11 @@ PROXY_FIX_CONFIG = {
 }
 
 PREFERRED_URL_SCHEME = "https"
-FEATURE_FLAGS = {"ENABLE_TEMPLATE_PROCESSING": False}
+FEATURE_FLAGS = {
+    "ENABLE_TEMPLATE_PROCESSING": False,
+    "TAGGING_SYSTEM": True,
+    "EMBEDDED_SUPERSET": os.environ.get("SUPERSET_EMBEDDING_ENABLED", "false").lower() == "true",
+}
 APP_NAME = "Ingevec Postventa"
 APP_ICON = "/static/assets/images/ingevec_logo.png"
 
@@ -52,6 +57,38 @@ TALISMAN_CONFIG = {
     "force_https": False,
     "session_cookie_secure": False,
 }
+
+_embed_origins = [value.strip().rstrip("/") for value in os.environ.get("SUPERSET_EMBED_ALLOWED_ORIGINS", "").split(",") if value.strip()]
+_embedding_enabled = os.environ.get("SUPERSET_EMBEDDING_ENABLED", "false").lower() == "true"
+if _embedding_enabled and not _embed_origins:
+    raise RuntimeError("SUPERSET_EMBED_ALLOWED_ORIGINS is required when embedding is enabled")
+def _valid_origin(origin):
+    parsed = urlsplit(origin)
+    return bool(
+        parsed.scheme in {"http", "https"}
+        and parsed.netloc
+        and not parsed.username
+        and not parsed.password
+        and parsed.path in {"", "/"}
+        and not parsed.query
+        and not parsed.fragment
+    )
+
+
+if _embedding_enabled and any(not _valid_origin(origin) for origin in _embed_origins):
+    raise RuntimeError("SUPERSET_EMBED_ALLOWED_ORIGINS must contain exact HTTP(S) origins")
+if _embed_origins:
+    TALISMAN_CONFIG["content_security_policy"]["frame-ancestors"] = _embed_origins
+    TALISMAN_CONFIG["frame_options"] = None
+
+GUEST_ROLE_NAME = "Ingevec Embedded Viewer"
+GUEST_TOKEN_JWT_AUDIENCE = "superset"
+GUEST_TOKEN_JWT_EXP_SECONDS = int(os.environ.get("SUPERSET_GUEST_TOKEN_TTL_SECONDS", "300"))
+_guest_secret = os.environ.get("SUPERSET_GUEST_TOKEN_JWT_SECRET", "")
+if _embedding_enabled:
+    if len(_guest_secret) < 32:
+        raise RuntimeError("SUPERSET_GUEST_TOKEN_JWT_SECRET must contain at least 32 characters when embedding is enabled")
+    GUEST_TOKEN_JWT_SECRET = _guest_secret
 
 # Offer English and Spanish in Superset's language picker. English remains the
 # default; each user can switch languages from the navigation bar.
@@ -115,6 +152,11 @@ class KeycloakSecurityManager(SupersetSecurityManager):
 
     def get_rls_filters(self, table):
         filters = super().get_rls_filters(table)
+        # Superset validates guest JWTs and applies their RLS through the
+        # separate get_guest_rls_filters hook below. Do not append the direct
+        # Keycloak user's missing-scope denial to an authenticated guest.
+        if self.get_current_guest_user_if_guest():
+            return filters
         if table.schema != "analytics" or table.table_name not in {
             "postventa_item_dashboard",
             "postventa_item_cause_dashboard",
@@ -136,10 +178,28 @@ class KeycloakSecurityManager(SupersetSecurityManager):
                 clauses.append("numero_obra IN (" + ",".join("'" + value + "'" for value in safe_projects) + ")")
         return [*filters, SimpleNamespace(clause="(" + " OR ".join(clauses) + ")" if clauses else "1 = 0", group_key=None)]
 
+    def get_guest_rls_filters(self, dataset):
+        """Require a nonempty guest RLS rule and deny every other dataset."""
+        guest = self.get_current_guest_user_if_guest()
+        if not guest:
+            return super().get_guest_rls_filters(dataset)
+        rules = super().get_guest_rls_filters(dataset)
+        curated = dataset.schema == "analytics" and dataset.table_name in {
+            "postventa_item_dashboard",
+            "postventa_item_cause_dashboard",
+            "postventa_item_cause_pareto",
+        }
+        if not curated:
+            return [{"clause": "1 = 0"}]
+        applicable = [rule for rule in rules if str(rule.get("clause", "")).strip()]
+        return applicable or [{"clause": "1 = 0"}]
+
+
+if os.environ.get("SUPERSET_OIDC_CLIENT_SECRET") or _embedding_enabled:
+    CUSTOM_SECURITY_MANAGER = KeycloakSecurityManager
 
 if os.environ.get("SUPERSET_OIDC_CLIENT_SECRET"):
     AUTH_TYPE = AUTH_OAUTH
-    CUSTOM_SECURITY_MANAGER = KeycloakSecurityManager
     AUTH_ROLES_MAPPING = {
         "superset_admin": ["Admin"],
         "superset_viewer": ["Ingevec Viewer"],

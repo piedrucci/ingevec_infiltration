@@ -10,11 +10,13 @@ import { ProjectManagerItemsPage } from "./features/projects/ProjectManagerItems
 import { ItemEvaluationPage } from "./features/evaluation/ItemEvaluationPage";
 import { ItemsEvaluationPage } from "./features/evaluation/ItemsEvaluationPage";
 import { CategoryItemsPage } from "./features/category-items/CategoryItemsPage";
+import { AnalyticsPage } from "./features/analytics/AnalyticsPage";
 import { Button } from "./components/ui/button";
 import { NavigationMenu, NavigationMenuItem, NavigationMenuLink, NavigationMenuList } from "./components/ui/navigation-menu";
 
 const navigationItems = [
   { to: "/", label: "Inicio", end: true },
+  { to: "/analytics", label: "Analítica" },
   { to: "/projects", label: "Proyectos" },
   { to: "/items/categories", label: "Ítems por categoría" },
   { to: "/items/evaluation", label: "Evaluación" },
@@ -46,7 +48,7 @@ export function App() {
           })}
         </NavigationMenuList>
       </NavigationMenu>
-      <Routes><Route path="/" element={<HomePage />} /><Route path="/projects" element={<ProjectsPage />} /><Route path="/project-managers/:projectManagerId/items" element={<ProjectManagerItemsPage />} /><Route path="/items/evaluation" element={<ItemsEvaluationPage />} /><Route path="/items/categories" element={<CategoryItemsPage />} /><Route path="/items/:publicId/evaluation" element={<ItemEvaluationPage />} /><Route path="/documents/upload" element={<UploadPage />} /><Route path="/documents" element={<DocumentsPage />} /><Route path="/documents/:publicId/review" element={<ReviewPage />} /><Route path="*" element={<Navigate to="/" replace />} /></Routes>
+      <Routes><Route path="/" element={<HomePage />} /><Route path="/analytics" element={<AnalyticsPage />} /><Route path="/projects" element={<ProjectsPage />} /><Route path="/project-managers/:projectManagerId/items" element={<ProjectManagerItemsPage />} /><Route path="/items/evaluation" element={<ItemsEvaluationPage />} /><Route path="/items/categories" element={<CategoryItemsPage />} /><Route path="/items/:publicId/evaluation" element={<ItemEvaluationPage />} /><Route path="/documents/upload" element={<UploadPage />} /><Route path="/documents" element={<DocumentsPage />} /><Route path="/documents/:publicId/review" element={<ReviewPage />} /><Route path="*" element={<Navigate to="/" replace />} /></Routes>
     </main>
   );
 }

@@ -1,5 +1,14 @@
 export type Page = { total: number; limit: number; offset: number };
 
+export type EmbeddedDashboardMetadata = {
+  enabled: boolean;
+  dashboard_uuid: string | null;
+  superset_url: string | null;
+  title: string | null;
+};
+
+export type GuestTokenResponse = { token: string; expires_in: number };
+
 export type Project = {
   id: string;
   public_id: string;

@@ -9,6 +9,18 @@ class HealthResponse(BaseModel):
     environment: str
 
 
+class EmbeddedDashboardMetadata(BaseModel):
+    enabled: bool
+    dashboard_uuid: str | None = None
+    superset_url: str | None = None
+    title: str | None = None
+
+
+class GuestTokenResponse(BaseModel):
+    token: str
+    expires_in: int
+
+
 class DashboardBreakdown(BaseModel):
     name: str
     count: int

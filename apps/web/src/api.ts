@@ -1,14 +1,15 @@
 import { accessToken } from "./auth";
-import type { CategoryItemsResponse, DashboardProjectProgressResponse, DashboardSubcontractorBreakdown, DashboardSubcontractorProject, DashboardSummary, Document, DocumentCandidateResponse, DocumentDetail, DocumentSummary, FailureCauseCategoryOption, FailureCauseOption, ItemCategoryOption, PageResponse, PostventaItem, Project } from "./types";
+import type { CategoryItemsResponse, DashboardProjectProgressResponse, DashboardSubcontractorBreakdown, DashboardSubcontractorProject, DashboardSummary, Document, DocumentCandidateResponse, DocumentDetail, DocumentSummary, EmbeddedDashboardMetadata, FailureCauseCategoryOption, FailureCauseOption, GuestTokenResponse, ItemCategoryOption, PageResponse, PostventaItem, Project } from "./types";
 
 type ApiErrorDetail = string | { code?: string; document_public_id?: string; original_filename?: string };
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
 const apiUrl = (path: string) => `${API_BASE_URL}${path}`;
 
-async function request<T>(path: string): Promise<T> {
+async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = await accessToken();
   const response = await fetch(apiUrl(path), {
+    ...init,
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!response.ok) {
@@ -16,9 +17,18 @@ async function request<T>(path: string): Promise<T> {
     const detail = typeof body?.detail === "string" ? body.detail : `La API respondió ${response.status}.`;
     const error = new Error(detail) as Error & { detail?: ApiErrorDetail };
     error.detail = body?.detail;
+    (error as Error & { status?: number }).status = response.status;
     throw error;
   }
   return response.json() as Promise<T>;
+}
+
+export function getAnalyticsDashboard(): Promise<EmbeddedDashboardMetadata> {
+  return request<EmbeddedDashboardMetadata>("/v1/analytics/dashboard");
+}
+
+export function getAnalyticsGuestToken(): Promise<GuestTokenResponse> {
+  return request<GuestTokenResponse>("/v1/analytics/guest-token", { method: "POST" });
 }
 
 async function requestBlob(path: string): Promise<Blob> {

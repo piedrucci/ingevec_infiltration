@@ -33,6 +33,14 @@ class Settings(BaseSettings):
     OCR_DPI: int = Field(default=150, ge=150, le=600)
     OCR_MAX_PAGES: int = Field(default=10, ge=1, le=100)
     OCR_PAGE_TIMEOUT_SECONDS: int = Field(default=30, ge=1, le=300)
+    SUPERSET_EMBEDDING_ENABLED: bool = False
+    SUPERSET_PUBLIC_URL: str = ""
+    SUPERSET_INTERNAL_URL: str = "http://superset:8088"
+    SUPERSET_EMBEDDED_DASHBOARD_UUID: str = ""
+    SUPERSET_EMBED_SERVICE_USERNAME: str = ""
+    SUPERSET_EMBED_SERVICE_PASSWORD: str = ""
+    SUPERSET_EMBED_ALLOWED_ORIGINS: str = ""
+    SUPERSET_GUEST_TOKEN_TTL_SECONDS: int = Field(default=300, ge=60, le=600)
 
 
 @lru_cache

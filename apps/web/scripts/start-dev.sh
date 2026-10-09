@@ -1,12 +1,12 @@
 #!/bin/sh
 set -eu
 
-lock_hash="$(sha256sum package-lock.json | cut -d ' ' -f 1)"
-installed_hash="$(cat node_modules/.ingevec-package-lock.sha256 2>/dev/null || true)"
+lock_hash="$(sha256sum package.json pnpm-lock.yaml | sha256sum | cut -d ' ' -f 1)"
+installed_hash="$(cat node_modules/.ingevec-pnpm-lock.sha256 2>/dev/null || true)"
 
 if [ "$lock_hash" != "$installed_hash" ]; then
-  npm ci --include=optional
-  printf '%s\n' "$lock_hash" > node_modules/.ingevec-package-lock.sha256
+  pnpm install --frozen-lockfile
+  printf '%s\n' "$lock_hash" > node_modules/.ingevec-pnpm-lock.sha256
 fi
 
-exec npm run dev -- --host 0.0.0.0
+exec pnpm dev -- --host 0.0.0.0

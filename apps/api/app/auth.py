@@ -34,8 +34,18 @@ def current_claims(credentials: HTTPAuthorizationCredentials | None = Depends(be
 
 
 def require_admin(claims: dict = Depends(current_claims)) -> dict:
-    realm_roles = claims.get("realm_access", {}).get("roles", [])
-    resource_roles = claims.get("resource_access", {}).get(get_settings().OIDC_AUDIENCE, {}).get("roles", [])
+    realm_access = claims.get("realm_access", {})
+    realm_roles = realm_access.get("roles", []) if isinstance(realm_access, dict) else []
+    resource_access = claims.get("resource_access", {})
+    resource = resource_access.get(get_settings().OIDC_AUDIENCE, {}) if isinstance(resource_access, dict) else {}
+    resource_roles = resource.get("roles", []) if isinstance(resource, dict) else []
+    if (
+        not isinstance(realm_roles, list)
+        or any(not isinstance(role, str) for role in realm_roles)
+        or not isinstance(resource_roles, list)
+        or any(not isinstance(role, str) for role in resource_roles)
+    ):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid role claims")
     if "admin" not in set(realm_roles) | set(resource_roles):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin role required")
     return claims

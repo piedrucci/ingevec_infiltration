@@ -166,3 +166,50 @@ docker compose --env-file .env.development \
 Para aplicar el reemplazo en desarrollo, elimina `--dry-run`. En producción,
 monta el archivo JSON como un volumen de solo lectura y ejecuta el mismo
 comando con los archivos Compose de producción después de revisar el resumen.
+
+## Habilitar el panel embebido de Superset
+
+La integración queda desactivada por defecto. Antes del primer despliegue, deja
+`SUPERSET_EMBEDDING_ENABLED=false` en Dokploy para que el código y el reinicio
+del servicio no publiquen el panel antes de revisar sus permisos.
+
+En Superset configura el embedding de **Dashboard Principal** y permite sólo
+`https://app.capix.cloud`. Guarda el UUID generado por Superset en Dokploy como
+`SUPERSET_EMBEDDED_DASHBOARD_UUID`. Configura `SUPERSET_PUBLIC_URL` como
+`https://bi.capix.cloud`, `SUPERSET_INTERNAL_URL` como
+`http://superset:8088` y `SUPERSET_EMBED_ALLOWED_ORIGINS` como
+`https://app.capix.cloud`. Actualiza el cliente Keycloak `ingevec-web` en el
+realm activo para incluir el mapper full-path de grupos; reinicia la sesión de
+las cuentas de prueba y verifica sus roles y claim `groups` en el access token.
+La plantilla JSON del realm sólo cambia nuevas importaciones y no actualiza
+por sí sola un cliente ya existente.
+
+Genera `SUPERSET_GUEST_TOKEN_JWT_SECRET` con al menos 32 caracteres aleatorios
+y guárdalo sólo en el servicio Superset. Crea una contraseña dedicada para
+`SUPERSET_EMBED_SERVICE_USERNAME` y `SUPERSET_EMBED_SERVICE_PASSWORD`; Dokploy
+debe entregar esas credenciales al API y al `superset-provisioner`, nunca al
+frontend. Mantén la integración desactivada hasta que estas variables estén
+cargadas.
+
+Con los valores privados cargados, corre el provisioner usando la ruta de
+Compose del proyecto Dokploy:
+
+```bash
+docker compose --env-file .env -f compose.yaml -f compose.prod.yaml \
+  --profile provision run --rm superset-provisioner
+```
+
+Vuelve a desplegar para que Superset cargue su secreto, su rol de guest y el
+CSP. Comprueba `can_read` y `can_grant_guest_token` en `SecurityRestApi` para el issuer, el
+rol `Ingevec Embedded Viewer`, el endpoint `/v1/analytics/dashboard`, y luego
+prueba la página con cuentas de alcance de proyecto, división, ambas y sin
+alcance. Confirma que el guest token no permite otros dashboards o datasets,
+que filtros y gráficos muestran el mismo resultado que Superset, y que la
+respuesta del iframe permite sólo `app.capix.cloud` mediante
+`frame-ancestors`. Habilita el feature en Dokploy sólo después de esas pruebas.
+
+Para rollback, vuelve a `SUPERSET_EMBEDDING_ENABLED=false` y redepliega. Si
+necesitas invalidar de inmediato tokens ya emitidos, cambia el secreto de guest
+en Superset y reinicia ese servicio; revoca también la contraseña del issuer si
+se sospecha que fue expuesta. No hace falta una migración de la base de datos
+de la aplicación.

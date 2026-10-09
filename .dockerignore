@@ -1,0 +1,6 @@
+.git
+**/node_modules
+**/dist
+**/.pnpm-store
+**/*.tsbuildinfo
+apps/web/package-lock.json

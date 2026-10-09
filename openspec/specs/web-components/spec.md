@@ -87,6 +87,14 @@ Tailwind utility classes SHALL be the primary styling method. New component-spec
 - **AND** a custom CSS rule is used only when Tailwind cannot reasonably meet the requirement
 - **AND** any necessary global CSS is limited to a genuinely global behavior or design token
 
+### Requirement: Roboto typography
+The web application SHALL use Roboto as its sole named font family for all UI text. New fonts, font assets, and alternate named font families SHALL NOT be introduced.
+
+#### Scenario: Adding or styling UI text
+- **WHEN** an agent adds or styles text in `apps/web`
+- **THEN** it uses the existing Roboto font setup
+- **AND** it does not add a different font for headings, body text, or individual components
+
 ### Requirement: Types
 Props, API responses, and table rows SHALL be typed.
 

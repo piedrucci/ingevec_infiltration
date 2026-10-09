@@ -18,6 +18,8 @@ ANALYTICS_VIEWS = (
 )
 VIEWER_ROLE = "Ingevec Viewer"
 BUILDER_ROLE = "Ingevec Dashboard Builder"
+EMBEDDED_ROLE = "Ingevec Embedded Viewer"
+ISSUER_ROLE = "Ingevec Guest Token Issuer"
 
 # Superset's stock Gamma role includes chart/dashboard write and Explore
 # permissions. Keep ordinary viewers read-only and grant authoring separately.
@@ -33,6 +35,9 @@ VIEWER_PERMISSIONS = {
     ("can_read", "Tag"),
     ("can_write", "DashboardFilterStateRestApi"),
     ("can_write", "DashboardPermalinkRestApi"),
+}
+EMBEDDED_PERMISSIONS = {
+    permission for permission in VIEWER_PERMISSIONS if permission[0] != "can_write"
 }
 BUILDER_PERMISSIONS = VIEWER_PERMISSIONS | {
     ("can_explore", "Superset"),
@@ -136,8 +141,11 @@ def register_superset_database(uri: str) -> None:
         security_manager = app.appbuilder.sm
         viewer = security_manager.find_role(VIEWER_ROLE) or security_manager.add_role(VIEWER_ROLE)
         builder = security_manager.find_role(BUILDER_ROLE) or security_manager.add_role(BUILDER_ROLE)
+        embedded = security_manager.find_role(EMBEDDED_ROLE) or security_manager.add_role(EMBEDDED_ROLE)
         _replace_role_permissions(security_manager, viewer, VIEWER_PERMISSIONS)
         _replace_role_permissions(security_manager, builder, BUILDER_PERMISSIONS)
+        _replace_role_permissions(security_manager, embedded, EMBEDDED_PERMISSIONS)
+        _provision_guest_issuer(security_manager)
 
         for view_name in ANALYTICS_VIEWS:
             dataset = db.session.query(SqlaTable).filter_by(
@@ -159,12 +167,36 @@ def register_superset_database(uri: str) -> None:
 
             # Both custom roles are confined to curated datasets. Row scope is
             # enforced server-side by KeycloakSecurityManager for each view.
-            for role in (viewer, builder):
+            for role in (viewer, builder, embedded):
                 permission = security_manager.find_permission_view_menu("datasource_access", dataset.get_perm())
                 if permission is None:
                     permission = security_manager.add_permission_view_menu("datasource_access", dataset.get_perm())
                 security_manager.add_permission_role(role, permission)
                 db.session.commit()
+
+
+def _provision_guest_issuer(security_manager) -> None:
+    """Create a DB-authenticated issuer with only the 4.1.2 guest-token permission."""
+    username = os.environ.get("SUPERSET_EMBED_SERVICE_USERNAME", "").strip()
+    password = os.environ.get("SUPERSET_EMBED_SERVICE_PASSWORD", "")
+    if not username and not password:
+        return
+    if not username or len(password) < 20:
+        raise RuntimeError("Embedding issuer requires a username and a password of at least 20 characters")
+    role = security_manager.find_role(ISSUER_ROLE) or security_manager.add_role(ISSUER_ROLE)
+    _replace_role_permissions(
+        security_manager,
+        role,
+        {("can_read", "SecurityRestApi"), ("can_grant_guest_token", "SecurityRestApi")},
+    )
+    user = security_manager.find_user(username=username)
+    if user is None:
+        if not security_manager.add_user(username, "Ingevec", "Analytics", f"{username}@localhost", role, password=password):
+            raise RuntimeError("Could not create Superset guest-token issuer account")
+    else:
+        user.roles = [role]
+        security_manager.reset_password(user.id, password)
+        security_manager.update_user(user)
 
 
 def _replace_role_permissions(security_manager, role, definitions: set[tuple[str, str]]) -> None:
