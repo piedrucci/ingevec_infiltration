@@ -23,6 +23,7 @@ type DataTableProps<TData extends Record<string, any>> = {
   onGlobalFilterChange?: OnChangeFn<string>;
   globalFilterLabel?: string;
   globalFilterPlaceholder?: string;
+  globalFilterMaxLength?: number;
   getRowId?: (originalRow: TData, index: number) => string;
   selectedRowId?: string | null;
   onRowClick?: (row: Row<StockFeatures, TData>) => void;
@@ -40,7 +41,7 @@ function sortLabel<TData extends Record<string, any>>(table: ReactTable<StockFea
   return direction === "asc" ? " (ascendente)" : direction === "desc" ? " (descendente)" : " (ordenar)";
 }
 
-export function DataTable<TData extends Record<string, any>>({ data, columns, sorting = [], onSortingChange, globalFilter = "", onGlobalFilterChange, globalFilterLabel = "Buscar", globalFilterPlaceholder = "Buscar…", getRowId, selectedRowId, onRowClick, columnClassName, tableClassName, globalFilterClassName, rowClassName, emptyMessage = "No hay datos." }: DataTableProps<TData>) {
+export function DataTable<TData extends Record<string, any>>({ data, columns, sorting = [], onSortingChange, globalFilter = "", onGlobalFilterChange, globalFilterLabel = "Buscar", globalFilterPlaceholder = "Buscar…", globalFilterMaxLength, getRowId, selectedRowId, onRowClick, columnClassName, tableClassName, globalFilterClassName, rowClassName, emptyMessage = "No hay datos." }: DataTableProps<TData>) {
   const table = useTable({
     features: stockFeatures,
     data,
@@ -55,7 +56,7 @@ export function DataTable<TData extends Record<string, any>>({ data, columns, so
 
   return <>
     {onGlobalFilterChange && <div className={cn("mb-4", globalFilterClassName)}>
-      <Input aria-label={globalFilterLabel} value={globalFilter} placeholder={globalFilterPlaceholder} onChange={(event) => table.setGlobalFilter(event.target.value)} />
+      <Input aria-label={globalFilterLabel} value={globalFilter} maxLength={globalFilterMaxLength} placeholder={globalFilterPlaceholder} onChange={(event) => table.setGlobalFilter(event.target.value)} />
     </div>}
     <Table className={cn("min-w-[850px]", tableClassName)}>
       <TableHeader>
