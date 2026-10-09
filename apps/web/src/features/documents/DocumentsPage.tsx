@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef, SortingState, StockFeatures } from "@tanstack/react-table";
+import { ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
 
 import { deleteDocument } from "../../api";
 import type { Document, DocumentStatus } from "../../types";
@@ -104,7 +105,7 @@ export function DocumentsPage() {
       id: "actions",
       header: "Acciones",
       enableSorting: false,
-      cell: ({ row }) => <Button variant="destructive" size="icon" className="document-delete-button" aria-label={`Eliminar documento ${row.original.original_filename}`} title={`Eliminar ${row.original.original_filename}`} disabled={deletingDocument === row.original.public_id} onClick={() => void removeDocument(row.original.public_id, row.original.original_filename)}>{deletingDocument === row.original.public_id ? <LoadingIndicator label="Eliminando…" compact /> : <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3" /></svg>}</Button>,
+      cell: ({ row }) => <Button variant="destructive" size="icon" className="cursor-pointer [&_svg]:size-5" aria-label={`Eliminar documento ${row.original.original_filename}`} title={`Eliminar ${row.original.original_filename}`} disabled={deletingDocument === row.original.public_id} onClick={() => void removeDocument(row.original.public_id, row.original.original_filename)}>{deletingDocument === row.original.public_id ? <LoadingIndicator label="Eliminando…" compact /> : <Trash2 aria-hidden="true" />}</Button>,
     },
   ], [deletingDocument, location.pathname, location.search, removeDocument]);
 
@@ -121,6 +122,6 @@ export function DocumentsPage() {
       {documentsQuery.isLoading && <div className="loading-block"><LoadingIndicator label="Cargando documentos…" /></div>}
       <DataTable data={documents} columns={documentColumns} sorting={sorting} onSortingChange={(updater) => { const next = typeof updater === "function" ? updater(sorting) : updater; const first = next[0]; updateUrlParams({ sort: first?.id ?? null, dir: first?.desc ? "desc" : "asc", offset: null }); }} getRowId={(document) => document.public_id} emptyMessage="No hay documentos para este filtro." />
     </CardContent>
-    <CardFooter className="pagination"><Button variant="secondary" size="sm" disabled={!hasPrevious || documentsQuery.isFetching} onClick={() => updateUrlParams({ offset: Math.max(0, offset - pageSize) })}>Anterior</Button><span>{total ? `${offset + 1}–${Math.min(offset + pageSize, total)} de ${total}` : "0 documentos"}</span><Button variant="secondary" size="sm" disabled={!hasNext || documentsQuery.isFetching} onClick={() => updateUrlParams({ offset: offset + pageSize })}>Siguiente</Button></CardFooter>
+    <CardFooter className="flex items-center justify-end gap-3 px-5 py-4"><Button variant="outline" size="icon" aria-label="Página anterior" disabled={!hasPrevious || documentsQuery.isFetching} onClick={() => updateUrlParams({ offset: Math.max(0, offset - pageSize) })}><ChevronLeft aria-hidden="true" /></Button><span className="text-xs text-muted-foreground">{total ? `${offset + 1}–${Math.min(offset + pageSize, total)} de ${total}` : "0 documentos"}</span><Button variant="outline" size="icon" aria-label="Página siguiente" disabled={!hasNext || documentsQuery.isFetching} onClick={() => updateUrlParams({ offset: offset + pageSize })}><ChevronRight aria-hidden="true" /></Button></CardFooter>
   </Card>;
 }

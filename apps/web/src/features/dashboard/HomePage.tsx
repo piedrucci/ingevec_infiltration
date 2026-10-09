@@ -15,11 +15,11 @@ const statusLabels: Record<string, string> = {
 };
 
 function MetricCard({ label, value, detail }: { label: string; value: string | number; detail?: string }) {
-  return <article className="metric-card"><p>{label}</p><strong>{value}</strong>{detail && <span>{detail}</span>}</article>;
+  return <article className="rounded-[10px] border border-border bg-card p-[1.1rem] shadow-sm"><p className="text-sm text-muted-foreground">{label}</p><strong className="my-1 block text-3xl">{value}</strong>{detail && <span className="text-sm text-muted-foreground">{detail}</span>}</article>;
 }
 
 function BreakdownCard({ title, rows, total, categoryLinks = false }: { title: string; rows: DashboardBreakdown[]; total: number; categoryLinks?: boolean }) {
-  return <section className="card breakdown-card"><div className="section-title"><h2>{title}</h2><span>{rows.length} grupos</span></div>
+  return <section className="mb-0 overflow-hidden rounded-[10px] border border-border bg-card shadow-sm"><div className="flex items-center justify-between gap-4 px-5 py-4"><h2>{title}</h2><span className="text-sm text-muted-foreground">{rows.length} grupos</span></div>
     {rows.length ? <ul className="breakdown-list">{rows.map((row) => {
       const percent = total ? (row.count / total) * 100 : 0;
       return <li key={row.name}><div>{categoryLinks && row.code ? <Link to={`/items/categories?category=${encodeURIComponent(row.code)}`} title={`Ver ítems de ${row.name}`}>{row.name}</Link> : <span title={row.name}>{row.name}</span>}<strong>{row.count.toLocaleString("es-CL")} <small>({percent.toFixed(1)}%)</small></strong></div><div className="progress-track">{percent > 0 && <span style={{ width: `${percent}%` }} />}</div></li>;
@@ -56,28 +56,26 @@ function SubcontractorCard() {
   const pageRows = table.getRowModel().rows;
   const projectQuery = useDashboardSubcontractorProjects(selectedSubcontractor?.id ?? null);
 
-  return <section className="card breakdown-card subcontractor-card">
-    <div className="section-title"><h2>Proyectos por subcontratista</h2><span>{query.isLoading ? "Cargando…" : `${rows.length} subcontratistas`}</span></div>
+  return <section className="mb-0 overflow-hidden rounded-[10px] border border-border bg-card shadow-sm">
+    <div className="flex items-center justify-between gap-4 px-5 py-4"><h2>Proyectos por subcontratista</h2><span className="text-sm text-muted-foreground">{query.isLoading ? "Cargando…" : `${rows.length} subcontratistas`}</span></div>
     <ErrorMessage error={query.error} />
     {query.isLoading ? <div className="empty-state"><LoadingIndicator label="Cargando subcontratistas…" compact /></div> : rows.length ? <>
-      <div className="subcontractor-table-wrap">
-        <Table className="subcontractor-table">
-          <TableHeader>{table.getHeaderGroups().map((group) => <TableRow key={group.id}>{group.headers.map((header) => <TableHead key={header.id} aria-sort={header.column.getIsSorted() === "asc" ? "ascending" : header.column.getIsSorted() === "desc" ? "descending" : "none"} className={header.column.id === "project_count" ? "text-right" : undefined}>{flexRender(header.column.columnDef.header, header.getContext())}</TableHead>)}</TableRow>)}</TableHeader>
+      <Table className="min-w-0 table-fixed">
+          <TableHeader>{table.getHeaderGroups().map((group) => <TableRow key={group.id} className="hover:bg-transparent">{group.headers.map((header) => <TableHead key={header.id} aria-sort={header.column.getIsSorted() === "asc" ? "ascending" : header.column.getIsSorted() === "desc" ? "descending" : "none"} className={header.column.id === "name" ? "w-[42%]" : header.column.id === "speciality" ? "w-[38%]" : "w-[20%] text-right"}>{flexRender(header.column.columnDef.header, header.getContext())}</TableHead>)}</TableRow>)}</TableHeader>
           <TableBody>
-            {pageRows.map((row) => <TableRow key={row.id} className="subcontractor-clickable-row" tabIndex={0} aria-label={`Ver proyectos de ${row.original.name}`} onClick={() => setSelectedSubcontractor(row.original)} onKeyDown={(event) => {
+            {pageRows.map((row) => <TableRow key={row.id} className="cursor-pointer focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]" tabIndex={0} aria-label={`Ver proyectos de ${row.original.name}`} onClick={() => setSelectedSubcontractor(row.original)} onKeyDown={(event) => {
               if (event.key === "Enter" || event.key === " ") {
                 event.preventDefault();
                 setSelectedSubcontractor(row.original);
               }
             }}>
-              {row.getVisibleCells().map((cell) => <TableCell key={cell.id} className={cell.column.id === "project_count" ? "text-right tabular-nums" : undefined}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}
+              {row.getVisibleCells().map((cell) => <TableCell key={cell.id} className={cell.column.id === "name" ? "w-[42%]" : cell.column.id === "speciality" ? "w-[38%]" : "w-[20%] text-right tabular-nums"}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}
             </TableRow>)}
           </TableBody>
         </Table>
-      </div>
-      <div className="pagination subcontractor-pagination">
-        <span>{`${pagination.pageIndex * pagination.pageSize + 1}–${Math.min((pagination.pageIndex + 1) * pagination.pageSize, rows.length)} de ${rows.length}`}</span>
-        <div>
+      <div className="flex items-center justify-between gap-3 border-t border-border px-4 py-3">
+        <span className="text-xs text-muted-foreground">{`${pagination.pageIndex * pagination.pageSize + 1}–${Math.min((pagination.pageIndex + 1) * pagination.pageSize, rows.length)} de ${rows.length}`}</span>
+        <div className="flex gap-2">
           <Button variant="outline" size="icon" aria-label="Página anterior" title="Página anterior" disabled={!table.getCanPreviousPage()} onClick={() => table.previousPage()}><ChevronLeft aria-hidden="true" /></Button>
           <Button variant="outline" size="icon" aria-label="Página siguiente" title="Página siguiente" disabled={!table.getCanNextPage()} onClick={() => table.nextPage()}><ChevronRight aria-hidden="true" /></Button>
         </div>
@@ -89,7 +87,7 @@ function SubcontractorCard() {
           <DialogTitle>{selectedSubcontractor?.name}</DialogTitle>
           <DialogDescription>{selectedSubcontractor?.speciality} · {selectedSubcontractor?.project_count.toLocaleString("es-CL")} proyectos asociados</DialogDescription>
         </DialogHeader>
-        {projectQuery.isLoading ? <div className="dialog-loading"><LoadingIndicator label="Cargando proyectos…" compact /></div> : projectQuery.error ? <ErrorMessage error={projectQuery.error} /> : projectQuery.data?.length ? <Table className="subcontractor-project-table">
+        {projectQuery.isLoading ? <div className="py-3"><LoadingIndicator label="Cargando proyectos…" compact /></div> : projectQuery.error ? <ErrorMessage error={projectQuery.error} /> : projectQuery.data?.length ? <Table className="min-w-0">
           <TableHeader><TableRow><TableHead>N° Obra</TableHead><TableHead>Proyecto</TableHead></TableRow></TableHeader>
           <TableBody>{projectQuery.data.map((project) => <TableRow key={project.project_id}><TableCell className="tabular-nums">{project.project_id}</TableCell><TableCell>{project.project_name}</TableCell></TableRow>)}</TableBody>
         </Table> : <p className="empty-state dialog-empty">No hay proyectos asociados a este subcontratista.</p>}
@@ -100,7 +98,7 @@ function SubcontractorCard() {
 
 function SortableHeader({ label, direction, onToggle }: { label: string; direction: false | "asc" | "desc"; onToggle: () => void }) {
   const Icon = direction === "asc" ? ChevronUp : direction === "desc" ? ChevronDown : ArrowDownUp;
-  return <Button variant="ghost" size="sm" className="manager-progress-sort-button" aria-label={`Ordenar por ${label}`} onClick={onToggle}>
+  return <Button variant="ghost" size="sm" className="h-auto min-h-0 whitespace-nowrap rounded-none px-1 py-0 text-[0.7rem] uppercase tracking-[0.03em] hover:bg-transparent hover:text-primary" aria-label={`Ordenar por ${label}`} onClick={onToggle}>
     {label}<Icon aria-hidden="true" />
   </Button>;
 }
@@ -112,7 +110,7 @@ const managerProgressColumns: ColumnDef<StockFeatures, DashboardAssociationBreak
   { accessorKey: "pending_reconciliation_items", header: ({ column }) => <SortableHeader label="Pendientes" direction={column.getIsSorted()} onToggle={() => column.toggleSorting(column.getIsSorted() === "asc")} />, cell: ({ getValue }) => Number(getValue()).toLocaleString("es-CL") },
   { accessorKey: "reconciliation_rate", header: ({ column }) => <SortableHeader label="Avance" direction={column.getIsSorted()} onToggle={() => column.toggleSorting(column.getIsSorted() === "asc")} />, cell: ({ getValue }) => {
     const rate = Number(getValue());
-    return <div className="progress-cell"><div><strong>{(rate * 100).toFixed(1)}%</strong><div className="progress-track">{rate > 0 && <span style={{ width: `${rate * 100}%` }} />}</div></div></div>;
+    return <div className="min-w-[180px] [&>div]:grid [&>div]:grid-cols-[3.8rem_minmax(80px,1fr)] [&>div]:items-center [&>div]:gap-2 [&_strong]:text-sm"><div><strong>{(rate * 100).toFixed(1)}%</strong><div className="progress-track">{rate > 0 && <span style={{ width: `${rate * 100}%` }} />}</div></div></div>;
   } },
   { accessorKey: "associated_items", header: "Con PDF", enableSorting: false, cell: ({ getValue }) => Number(getValue()).toLocaleString("es-CL") },
 ];
@@ -126,8 +124,8 @@ function ProjectManagerProgressCard({ rows }: { rows: DashboardAssociationBreakd
     state: { sorting },
     onSortingChange: setSorting,
   });
-  return <section className="card project-manager-progress"><div className="section-title"><div><h2>Avance por gerente de proyecto</h2><p className="muted">Ítems conciliados mediante una o más causas</p></div><span>{rows.length} gerentes</span></div>
-    {rows.length ? <div className="table-wrap"><Table className="manager-progress-table"><TableHeader>{table.getHeaderGroups().map((group) => <TableRow key={group.id}>{group.headers.map((header) => <TableHead key={header.id} aria-sort={header.column.getIsSorted() === "asc" ? "ascending" : header.column.getIsSorted() === "desc" ? "descending" : "none"}>{flexRender(header.column.columnDef.header, header.getContext())}</TableHead>)}</TableRow>)}</TableHeader><TableBody>{table.getRowModel().rows.map((row) => <TableRow key={row.id}>{row.getVisibleCells().map((cell) => <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}</TableRow>)}</TableBody></Table></div> : <p className="empty-state">Sin datos disponibles.</p>}
+  return <section className="mb-4 overflow-hidden rounded-[10px] border border-border bg-card shadow-sm"><div className="flex items-center justify-between gap-4 px-5 py-4"><div><h2>Avance por gerente de proyecto</h2><p className="muted mt-1">Ítems conciliados mediante una o más causas</p></div><span className="text-sm text-muted-foreground">{rows.length} gerentes</span></div>
+    {rows.length ? <Table className="min-w-[1000px]"><TableHeader>{table.getHeaderGroups().map((group) => <TableRow key={group.id} className="hover:bg-transparent">{group.headers.map((header) => <TableHead key={header.id} aria-sort={header.column.getIsSorted() === "asc" ? "ascending" : header.column.getIsSorted() === "desc" ? "descending" : "none"}>{flexRender(header.column.columnDef.header, header.getContext())}</TableHead>)}</TableRow>)}</TableHeader><TableBody>{table.getRowModel().rows.map((row) => <TableRow key={row.id}>{row.getVisibleCells().map((cell) => <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}</TableRow>)}</TableBody></Table> : <p className="empty-state">Sin datos disponibles.</p>}
   </section>;
 }
 
@@ -148,7 +146,7 @@ export function HomePage() {
       <MetricCard label="Cobertura documental" value={totals.associated_items.toLocaleString("es-CL")} detail={`${(totals.document_coverage_rate * 100).toFixed(1)}% con PDF`} />
       <MetricCard label="PDFs registrados" value={totals.documents.toLocaleString("es-CL")} />
     </section>
-    <section className="card coverage-card"><div className="section-title"><h2>Avance de conciliación</h2><span>{(totals.reconciliation_rate * 100).toFixed(1)}%</span></div><div className="coverage-body"><div className="progress-track large"><span style={{ width: `${totals.reconciliation_rate * 100}%` }} /></div><p className="muted">{totals.reconciled_items.toLocaleString("es-CL")} conciliados · {totals.pending_reconciliation_items.toLocaleString("es-CL")} pendientes</p></div></section>
+    <section className="mb-5 overflow-hidden rounded-[10px] border border-border bg-card shadow-sm"><div className="flex items-center justify-between gap-4 px-5 py-4"><h2>Avance de conciliación</h2><span className="text-sm text-muted-foreground">{(totals.reconciliation_rate * 100).toFixed(1)}%</span></div><div className="px-5 pb-5"><div className="progress-track large"><span style={{ width: `${totals.reconciliation_rate * 100}%` }} /></div><p className="muted mt-2">{totals.reconciled_items.toLocaleString("es-CL")} conciliados · {totals.pending_reconciliation_items.toLocaleString("es-CL")} pendientes</p></div></section>
     <ProjectManagerProgressCard rows={summary.project_manager_association_progress ?? []} />
     <section className="dashboard-grid">
       <BreakdownCard title="Ítems por gerente divisional" rows={breakdowns.division_managers ?? []} total={totals.items} />
