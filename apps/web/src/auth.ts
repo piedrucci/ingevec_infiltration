@@ -35,6 +35,23 @@ export function isAdmin(): boolean {
   return keycloak.realmAccess?.roles.includes("admin") ?? false;
 }
 
+export function accountProfile(): { name: string; picture?: string; initials: string } {
+  const claims = keycloak.tokenParsed ?? {};
+  const name = [claims.given_name, claims.family_name].filter((part): part is string => typeof part === "string" && part.trim().length > 0).join(" ").trim()
+    || (typeof claims.name === "string" ? claims.name.trim() : "")
+    || (typeof claims.preferred_username === "string" ? claims.preferred_username : "")
+    || (typeof claims.email === "string" ? claims.email : "Cuenta");
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  const initials = parts.length > 1
+    ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toLocaleUpperCase("es")
+    : (parts[0] ?? "?").slice(0, 2).toLocaleUpperCase("es");
+  return {
+    name,
+    initials,
+    ...(typeof claims.picture === "string" && claims.picture.trim() ? { picture: claims.picture } : {}),
+  };
+}
+
 export function hasAnalyticsAccess(): boolean {
   const roles = keycloak.realmAccess?.roles ?? [];
   return roles.some((role) => ["superset_admin", "superset_viewer", "superset_dashboard_builder"].includes(role));
