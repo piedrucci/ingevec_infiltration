@@ -11,6 +11,7 @@ import { ItemEvaluationPage } from "./features/evaluation/ItemEvaluationPage";
 import { ItemsEvaluationPage } from "./features/evaluation/ItemsEvaluationPage";
 import { CategoryItemsPage } from "./features/category-items/CategoryItemsPage";
 import { AnalyticsPage } from "./features/analytics/AnalyticsPage";
+import { GroupsPage } from "./features/groups/GroupsPage";
 import { Button } from "./components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "./components/ui/avatar";
 import { Popover, PopoverContent, PopoverTrigger } from "./components/ui/popover";
@@ -21,6 +22,7 @@ const navigationItems = [
   { to: "/", label: "Inicio", end: true },
   { to: "/projects", label: "Proyectos" },
   { to: "/items/categories", label: "Ítems por categoría" },
+  { to: "/groups", label: "Grupos" },
   { to: "/items/evaluation", label: "Evaluación" },
   { to: "/documents/upload", label: "Cargar PDFs" },
   { to: "/documents", label: "Documentos", end: true },
@@ -66,7 +68,7 @@ export function App() {
           })}
         </NavigationMenuList>
       </NavigationMenu>
-      <Routes><Route path="/" element={<HomePage />} /><Route path="/analytics" element={<AnalyticsPage />} /><Route path="/projects" element={<ProjectsPage />} /><Route path="/project-managers/:projectManagerId/items" element={<ProjectManagerItemsPage />} /><Route path="/items/evaluation" element={<ItemsEvaluationPage />} /><Route path="/items/categories" element={<CategoryItemsPage />} /><Route path="/items/:publicId/evaluation" element={<ItemEvaluationPage />} /><Route path="/documents/upload" element={<UploadPage />} /><Route path="/documents" element={<DocumentsPage />} /><Route path="/documents/:publicId/review" element={<ReviewPage />} /><Route path="*" element={<Navigate to="/" replace />} /></Routes>
+      <Routes><Route path="/" element={<HomePage />} /><Route path="/analytics" element={<AnalyticsPage />} /><Route path="/projects" element={<ProjectsPage />} /><Route path="/project-managers/:projectManagerId/items" element={<ProjectManagerItemsPage />} /><Route path="/items/evaluation" element={<ItemsEvaluationPage />} /><Route path="/items/categories" element={<CategoryItemsPage />} /><Route path="/groups" element={<GroupsPage />} /><Route path="/items/:publicId/evaluation" element={<ItemEvaluationPage />} /><Route path="/documents/upload" element={<UploadPage />} /><Route path="/documents" element={<DocumentsPage />} /><Route path="/documents/:publicId/review" element={<ReviewPage />} /><Route path="*" element={<Navigate to="/" replace />} /></Routes>
     </main>
   );
 }

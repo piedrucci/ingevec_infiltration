@@ -48,6 +48,7 @@ export type PageResponse<T> = { items: T[]; page: Page };
 
 export type DashboardBreakdown = { name: string; count: number; code?: string | null };
 export type ItemCategoryOption = { code: string; display_name_es: string; is_active: boolean };
+export type FailureCauseGroupOption = { code: string; display_name_es: string };
 export type CategoryItem = { id: number; public_id: string; project_id: string; project_name: string; notes: string; failure_causes: { code: string; display_name_es: string }[]; has_document: boolean };
 export type CategoryItemsResponse = { items: CategoryItem[]; total: number };
 export type DashboardSubcontractorBreakdown = { id: number; name: string; speciality: string; project_count: number };

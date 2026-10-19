@@ -1,5 +1,5 @@
 import { accessToken } from "./auth";
-import type { CategoryItemsResponse, DashboardProjectProgressResponse, DashboardSubcontractorBreakdown, DashboardSubcontractorProject, DashboardSummary, Document, DocumentCandidateResponse, DocumentDetail, DocumentSummary, EmbeddedDashboardMetadata, FailureCauseCategoryOption, FailureCauseOption, GuestTokenResponse, ItemCategoryOption, PageResponse, PostventaItem, Project } from "./types";
+import type { CategoryItemsResponse, DashboardProjectProgressResponse, DashboardSubcontractorBreakdown, DashboardSubcontractorProject, DashboardSummary, Document, DocumentCandidateResponse, DocumentDetail, DocumentSummary, EmbeddedDashboardMetadata, FailureCauseCategoryOption, FailureCauseGroupOption, FailureCauseOption, GuestTokenResponse, ItemCategoryOption, PageResponse, PostventaItem, Project } from "./types";
 
 type ApiErrorDetail = string | { code?: string; document_public_id?: string; original_filename?: string };
 
@@ -232,6 +232,14 @@ export function getItemCategories(): Promise<ItemCategoryOption[]> {
 
 export function getCategoryCauses(categoryCode: string): Promise<ItemCategoryOption[]> {
   return request<ItemCategoryOption[]>(`/v1/item-categories/${encodeURIComponent(categoryCode)}/causes`);
+}
+
+export function getFailureCauseGroups(): Promise<FailureCauseGroupOption[]> {
+  return request<FailureCauseGroupOption[]>("/v1/failure-cause-groups");
+}
+
+export function getGroupCategories(groupCode: string): Promise<ItemCategoryOption[]> {
+  return request<ItemCategoryOption[]>(`/v1/failure-cause-groups/${encodeURIComponent(groupCode)}/categories`);
 }
 
 export function getCategoryItems(categoryCode: string, options: { causeCode?: string; search?: string; limit?: number; offset?: number; sortBy?: "project_id" | "project_name" | "notes"; sortDirection?: "asc" | "desc" } = {}): Promise<CategoryItemsResponse> {

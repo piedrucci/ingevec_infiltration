@@ -33,6 +33,11 @@ class ItemCategoryOption(BaseModel):
     is_active: bool
 
 
+class FailureCauseGroupOption(BaseModel):
+    code: str
+    display_name_es: str
+
+
 class CategoryItemCause(BaseModel):
     code: str
     display_name_es: str

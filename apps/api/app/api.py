@@ -36,6 +36,7 @@ from app.schemas import (
     CategoryItemCause,
     CategoryItemsResponse,
     ItemCategoryOption,
+    FailureCauseGroupOption,
     DashboardSubcontractorBreakdown,
     DashboardSubcontractorProject,
     DashboardProjectProgressResponse,
@@ -67,6 +68,7 @@ from app.services.document_processor import _location_score, _move_document
 from app.services.document_scanner import publish_pending_document_events
 from app.services.document_upload import DuplicateDocumentError, register_pdf_upload
 from app.services.failure_causes import create_failure_cause
+from app.services.failure_cause_groups import list_group_categories, list_groups
 from app.services.excel_importer import import_workbook
 from app.services.storage import delete_private_object, get_private_object
 
@@ -76,6 +78,7 @@ postventa_items_router = APIRouter(prefix="/postventa-items", tags=["postventa-i
 documents_router = APIRouter(prefix="/documents", tags=["documents"])
 dashboard_router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 item_categories_router = APIRouter(prefix="/item-categories", tags=["item-categories"])
+failure_cause_groups_router = APIRouter(prefix="/failure-cause-groups", tags=["failure-cause-groups"])
 logger = logging.getLogger(__name__)
 
 
@@ -484,6 +487,20 @@ def get_dashboard_project_progress(
 @item_categories_router.get("", response_model=list[ItemCategoryOption])
 def list_item_categories(_: dict = Depends(require_admin), db: Session = Depends(get_db)) -> list[ItemCategoryOption]:
     rows = db.scalars(select(FailureCauseCategory).order_by(FailureCauseCategory.display_name_es)).all()
+    return [ItemCategoryOption(code=row.code, display_name_es=row.display_name_es, is_active=row.is_active) for row in rows]
+
+
+@failure_cause_groups_router.get("", response_model=list[FailureCauseGroupOption])
+def list_failure_cause_groups(_: dict = Depends(require_admin), db: Session = Depends(get_db)) -> list[FailureCauseGroupOption]:
+    return [FailureCauseGroupOption(code=row.code, display_name_es=row.display_name_es) for row in list_groups(db)]
+
+
+@failure_cause_groups_router.get("/{group_code}/categories", response_model=list[ItemCategoryOption])
+def list_failure_cause_group_categories(group_code: str, _: dict = Depends(require_admin), db: Session = Depends(get_db)) -> list[ItemCategoryOption]:
+    try:
+        rows = list_group_categories(db, group_code)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail="Group not found") from exc
     return [ItemCategoryOption(code=row.code, display_name_es=row.display_name_es, is_active=row.is_active) for row in rows]
 
 
