@@ -75,17 +75,19 @@ export function EmbeddedDashboard({ dashboard, retryKey, onRetry }: Props) {
   return (
     <div ref={container} className={cn("relative w-full min-w-0 overflow-hidden bg-background [&_iframe]:h-full [&_iframe]:w-full [&_iframe]:border-0", fullscreen.isFullscreen ? "h-screen" : "h-[calc(100vh-15rem)] min-h-[560px] rounded-md")} aria-busy={mounting}>
       <div ref={mountPoint} className="h-full w-full min-w-0" />
-      {fullscreen.isSupported && !error && !mounting && (() => {
-        const label = fullscreen.isFullscreen ? "Salir de pantalla completa" : "Pantalla completa";
-        return (
-          <Button variant="outline" size="icon" onClick={() => void fullscreen.toggle()} aria-label={label} title={label} aria-pressed={fullscreen.isFullscreen}
-            className="absolute right-3 top-3 z-10 bg-background/90 shadow-md backdrop-blur-sm">
-            {fullscreen.isFullscreen ? <Minimize2 aria-hidden="true" /> : <Maximize2 aria-hidden="true" />}
-          </Button>
-        );
-      })()}
+      {fullscreen.isSupported && !error && !mounting && <FullscreenButton active={fullscreen.isFullscreen} onToggle={() => void fullscreen.toggle()} />}
       {mounting && !error && <div className="absolute inset-0 grid place-items-center bg-background/80 text-sm text-muted-foreground">Cargando panel de analítica…</div>}
       {error && <div role="alert" className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-background text-center text-sm text-destructive"><p>La sesión de analítica expiró o no fue posible conectar. Vuelve a intentarlo.</p><Button variant="outline" onClick={onRetry}>Volver a conectar</Button></div>}
     </div>
+  );
+}
+
+function FullscreenButton({ active, onToggle }: { active: boolean; onToggle: () => void }) {
+  const label = active ? "Salir de pantalla completa" : "Pantalla completa";
+  return (
+    <Button variant="outline" size="icon" onClick={onToggle} aria-label={label} title={label} aria-pressed={active}
+      className="absolute right-3 top-3 z-10 bg-background/90 shadow-md backdrop-blur-sm">
+      {active ? <Minimize2 aria-hidden="true" /> : <Maximize2 aria-hidden="true" />}
+    </Button>
   );
 }
