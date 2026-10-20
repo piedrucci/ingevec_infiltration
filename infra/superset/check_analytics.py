@@ -39,6 +39,7 @@ def main() -> int:
         from superset.connectors.sqla.models import SqlaTable
         from superset.models.dashboard import Dashboard
         from superset.models.slice import Slice
+        from superset.viz import viz_types
 
         print("== Datasets")
         for dataset in db.session.query(SqlaTable).order_by(SqlaTable.id):
@@ -78,6 +79,18 @@ def main() -> int:
             refs = _references((chart.params or "") + (chart.query_context or ""), retired)
             problems += bool(refs)
             label = f"chart {chart.id} {chart.slice_name!r} (dataset {chart.datasource_id})"
+            if chart.viz_type in viz_types:
+                # Legacy charts (deck.gl maps) query through /superset/explore_json/ from their form data;
+                # their saved query_context is only a stub, so run them the same way Superset does.
+                try:
+                    payload = viz_types[chart.viz_type](datasource=chart.datasource, form_data=chart.form_data).get_payload()
+                    problems += bool(payload.get("error"))
+                    status = f"ERROR {payload['error']}" if payload.get("error") else f"OK rows=[{payload.get('rowcount')}] (legacy)"
+                except Exception as exc:  # noqa: BLE001
+                    problems += 1
+                    status = f"ERROR {type(exc).__name__}: {str(exc)[:200]}"
+                print(f"{label}: {status}; retired refs: {refs or 'none'}")
+                continue
             if not chart.query_context:
                 print(f"{label}: NOT EXECUTED (no saved query; open and save it once in Explore); retired refs: {refs or 'none'}")
                 continue
