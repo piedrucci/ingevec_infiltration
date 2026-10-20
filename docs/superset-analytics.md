@@ -52,6 +52,20 @@ Keycloak-backed viewers. The database connection uses the read-only
 `superset_reader` role. The viewer role receives datasource access to these
 curated datasets; dashboard authoring remains an administrator responsibility.
 
+## Checking datasets after analytics migrations
+
+After a migration that changes an `analytics` view, run the read-only checker inside the Superset container:
+
+```sh
+docker exec -w /app <superset-container> python /app/pythonpath/ingevec/check_analytics.py
+```
+
+Through the `superset_reader` connection it compares each dataset's stored columns with the live view, runs every dataset metric, executes every saved chart query, and flags chart or dashboard references to retired values (split cause codes, renamed causes, removed columns; pass other values as arguments). It ends with `OK: no problems found` or `PROBLEMS: N` (exit code 1). Charts never saved in Explore are reported as not executed. It runs as an Admin user, so row-level scope must still be checked with a non-admin viewer.
+
+Migration `20261019_0025` keeps the cause views' columns, so datasets and saved charts need no changes. Group breakdowns on the cause datasets now count an item only in the groups of its own causes (previously in every group of the cause's category), so "Items por grupo" values drop for groups that only shared categories. Use the distinct-item metrics, not `count`, for item totals.
+
+`infra/superset` is bind-mounted from the deployment checkout. Dokploy replaces the checkout on each deploy, and a Superset container that is not recreated keeps the old, deleted directory: the running server still works with the config it loaded at start, but new processes (this checker, `superset` CLI commands) cannot find `superset_config.py`. Restart the Superset container after a deploy (`docker restart <superset-container>`, about a minute of BI downtime) and confirm `ls /app/pythonpath/ingevec/` lists the files. Until then, run the checker with a copied config: `docker cp` `superset_config.py` and `check_analytics.py` to `/tmp` and add `-e SUPERSET_CONFIG_PATH=/tmp/superset_config.py`.
+
 ## Embedding Dashboard Principal in the admin application
 
 The React app exposes the published Superset dashboard at `/analytics` through the official `@superset-ui/embedded-sdk` 0.4.0. Embedding is opt-in (`SUPERSET_EMBEDDING_ENABLED=false` by default). The API issues short-lived, dashboard-only guest tokens; it never accepts a dashboard ID or row scope from the browser. The guest token expires after five minutes and the SDK requests a new one through the authenticated API client. Guest-token responses are not cacheable.
