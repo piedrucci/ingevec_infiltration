@@ -132,12 +132,19 @@ Project and location geography SHALL support incomplete source data.
 - Each subcontractor SHALL reference exactly one speciality.
 - Projects and subcontractors SHALL have a many-to-many relationship through `app.project_subcontractor`.
 - Specialities and subcontractor/project associations are maintained directly in the database; the administrative UI SHALL NOT provide CRUD or assignment workflows for them.
+- Speciality names and subcontractor names SHALL each be unique ignoring case, outer whitespace, and Spanish accents. New specialities are added by migrations.
+- When a subcontractor name already belongs to another speciality, the subcontractor for the new speciality SHALL be named `<name> <speciality>` with the speciality written without accents (for example `ICAM Hojalateria`).
 - The subcontractor dashboard SHALL display each subcontractor's speciality and associated-project count, ordered by project count descending.
 
 #### Scenario: Shared subcontractor or project
 - **WHEN** a subcontractor is associated with multiple projects, or a project with multiple subcontractors
 - **THEN** each association is stored as a separate `app.project_subcontractor` row
 - **AND** the speciality remains a single value on the subcontractor
+
+#### Scenario: Same company in two specialities
+- **WHEN** a seed lists `ICAM` under Hojalateria and `ICAM` already exists as Fachada
+- **THEN** `ICAM Hojalateria` is created with the Hojalateria speciality and receives the Hojalateria project links
+- **AND** the existing `ICAM` and its links are unchanged
 
 ### Requirement: Item reconciliation
 Item reconciliation SHALL be derived from the item's cause-assignment links.

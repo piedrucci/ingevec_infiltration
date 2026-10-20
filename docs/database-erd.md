@@ -1,6 +1,6 @@
 # Ingevec database ERD
 
-This diagram reflects the current `app` schema represented by the SQLAlchemy models and Alembic migrations through revision `20261020_0026`. Analytics views are not shown as physical tables; the reporting datasets are described below the diagram and in `docs/superset-analytics.md`.
+This diagram reflects the current `app` schema represented by the SQLAlchemy models and Alembic migrations through revision `20261020_0027`. Analytics views are not shown as physical tables; the reporting datasets are described below the diagram and in `docs/superset-analytics.md`.
 
 `PK` denotes a primary key, `FK` a foreign key, and `UK` a unique key. Attributes marked `nullable` are optional. Junction tables use composite primary keys. Crow's-foot relationships show whether the foreign key is required and whether multiple child rows are allowed.
 
@@ -203,7 +203,7 @@ erDiagram
 
 `analytics.postventa_item_dashboard` is an item-level reporting view built from `postventa_item`, `project`, the catalog tables, failure-cause tables, document associations, and project-manager hierarchy. `analytics.postventa_item_cause_dashboard` is a cause/category/group-level view intended for cause analysis. `analytics.postventa_item_cause_pareto` provides filter-aware cause-level Pareto reporting. These reporting views are intentionally omitted from the physical-table ERD.
 
-Additional unique constraints: `excel_source_row` is unique on `(excel_import_id, sheet_name, row_number)`, and `document_outbox_event` is unique on `(document_id, subject)`.
+Additional unique constraints: `excel_source_row` is unique on `(excel_import_id, sheet_name, row_number)`, `document_outbox_event` is unique on `(document_id, subject)`, and `speciality.name` and `subcontractor.name` are each unique on `translate(lower(btrim(name)), 'áéíóúüñ', 'aeiouun')` (case-, outer-whitespace- and accent-insensitive).
 
 `failure_cause_group` is seeded with the three fixed groups: `EJECUCION` (Ejecución), `PROPIETARIO` (Propietario), and `DISENO` (Diseño). The codes are stable identifiers; `display_name_es` contains the accented labels `Propietario`, `Ejecución`, and `Diseño`. Group-to-category assignments are stored in `failure_cause_category_group_link` (many-to-many). Each cause belongs to at most one category and at most one group: `failure_cause_category_link.group_id` is nullable, and the composite foreign key `(category_id, group_id)` → `failure_cause_category_group_link` (`ON DELETE RESTRICT`) guarantees that the cause's group contains its category. A cause without a group is unassigned. Cause-level analytics reports a grouped cause under its own group only; an unassigned cause still falls back to every group of its category. Group/category charts should use distinct item counts when aggregating across dimensions.
 
@@ -212,5 +212,7 @@ Migration `20261006_0022` clears the legacy subcontractor catalog, removes its a
 Migration `20261008_0024` removes the `item_type` catalog and `postventa_item.item_type_id`. The original workbook cells remain in `excel_source_row.raw_cells` for provenance; normalized postventa items and analytics views no longer expose item type. The migration drops the item-type catalog and assignments, so restoring them requires a database backup.
 
 Migration `20261019_0025` adds `failure_cause_category_link.group_id`, its composite foreign key and index, and makes the cause analytics views group-aware. It is additive and approved for automatic deployment; assigning groups, splitting causes used by several groups, and replacing item causes is the separate reviewed operation in `docs/cause-group-assignment.md`.
+
+Migration `20261020_0027` adds the `Hojalateria` speciality and the case/accent-insensitive unique indexes `uq_speciality_name_normalized` and `uq_subcontractor_name_normalized`. It aborts with the conflicting rows when duplicate names already exist and moves both identity sequences past rows inserted with explicit IDs. It is additive and approved for automatic deployment. Subcontractors and project links are then loaded with `app.commands.import_subcontractor_seed`; a name already used by another speciality is stored as `<name> <speciality>`, with the speciality written without accents.
 
 Migration `20261020_0026` appends `latitud`, `longitud` (double precision) and `direccion` from `project` to the end of `analytics.postventa_item_dashboard` for Superset maps. Existing view columns, dataset metrics and grants are unchanged; it is additive and approved for automatic deployment.

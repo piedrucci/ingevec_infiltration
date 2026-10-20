@@ -1,7 +1,7 @@
 import uuid
 from decimal import Decimal
 from datetime import date, datetime
-from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, ForeignKey, ForeignKeyConstraint, Index, Integer, Numeric, String, Text, UniqueConstraint, func
+from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, ForeignKey, ForeignKeyConstraint, Index, Integer, Numeric, String, Text, UniqueConstraint, func, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from app.db import Base
@@ -22,11 +22,13 @@ class Location(Base):
     __tablename__='location'; __table_args__={'schema':'app'}
     id: Mapped[int] = mapped_column(Integer, primary_key=True); name: Mapped[str] = mapped_column(String(255), nullable=False); geographic_zone: Mapped[str | None] = mapped_column(String(255))
 Supervisor=_catalog('Supervisor','supervisor'); Classification=_catalog('Classification','classification')
+NORMALIZED_NAME_SQL = "translate(lower(btrim(name)), 'áéíóúüñ', 'aeiouun')"
 class Speciality(Base):
-    __tablename__='speciality'; __table_args__={'schema':'app'}
+    # Speciality and subcontractor names are unique ignoring case, outer whitespace and accents (migration 20261020_0027).
+    __tablename__='speciality'; __table_args__=(Index('uq_speciality_name_normalized', text(NORMALIZED_NAME_SQL), unique=True), {'schema':'app'})
     id: Mapped[int] = mapped_column(Integer, primary_key=True); name: Mapped[str] = mapped_column(String(255), nullable=False)
 class Subcontractor(Base):
-    __tablename__='subcontractor'; __table_args__={'schema':'app'}
+    __tablename__='subcontractor'; __table_args__=(Index('uq_subcontractor_name_normalized', text(NORMALIZED_NAME_SQL), unique=True), {'schema':'app'})
     id: Mapped[int] = mapped_column(Integer, primary_key=True); name: Mapped[str] = mapped_column(String(255), nullable=False); speciality_id: Mapped[int] = mapped_column(ForeignKey('app.speciality.id'), nullable=False)
 class ProjectSubcontractor(Base):
     __tablename__='project_subcontractor'; __table_args__={'schema':'app'}
