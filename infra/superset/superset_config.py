@@ -22,7 +22,9 @@ PROXY_FIX_CONFIG = {
 
 PREFERRED_URL_SCHEME = "https"
 FEATURE_FLAGS = {
-    "ENABLE_TEMPLATE_PROCESSING": False,
+    # Jinja in chart SQL, e.g. {{ '1 = 1' if filter_values('proyecto') else '1 = 0' }} to keep a chart
+    # empty until a filter is selected. Only chart authors write SQL; row-level security still applies.
+    "ENABLE_TEMPLATE_PROCESSING": True,
     "TAGGING_SYSTEM": True,
     "EMBEDDED_SUPERSET": os.environ.get("SUPERSET_EMBEDDING_ENABLED", "false").lower() == "true",
 }

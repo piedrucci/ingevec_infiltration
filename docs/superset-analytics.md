@@ -30,6 +30,13 @@ subcontractors of the same speciality on one project are both credited. For
 cascading filters, make the `subcontratista` native filter depend on the
 `especialidad` filter.
 
+Jinja templating is enabled (`ENABLE_TEMPLATE_PROCESSING`). Superset cannot hide
+a chart conditionally; to keep a chart empty until a dashboard filter has a
+value, add a Custom SQL filter such as
+`{{ '1 = 1' if filter_values('proyecto') else '1 = 0' }}` (used by the
+per-project subcontractor table). Only chart authors write SQL, and row-level
+security still applies to templated queries.
+
 Recommended measures:
 
 - Total items: `COUNT(DISTINCT postventa_item_public_id)` on either dataset.
