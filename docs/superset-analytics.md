@@ -66,6 +66,10 @@ Migration `20261019_0025` keeps the cause views' columns, so datasets and saved 
 
 `infra/superset` is bind-mounted from the deployment checkout. Dokploy replaces the checkout on each deploy, and a Superset container that is not recreated keeps the old, deleted directory: the running server still works with the config it loaded at start, but new processes (this checker, `superset` CLI commands) cannot find `superset_config.py`. Restart the Superset container after a deploy (`docker restart <superset-container>`, about a minute of BI downtime) and confirm `ls /app/pythonpath/ingevec/` lists the files. Until then, run the checker with a copied config: `docker cp` `superset_config.py` and `check_analytics.py` to `/tmp` and add `-e SUPERSET_CONFIG_PATH=/tmp/superset_config.py`.
 
+## Project map
+
+`analytics.postventa_item_dashboard` exposes `latitud`, `longitud` and `direccion` of each item's project (migration `20261020_0026`). After deploying, sync the dataset columns (Datasets → edit `postventa_item_dashboard` → Columns → **Sync columns from source**, or rerun `superset-provisioner`). For a marker map use **deck.gl Scatterplot** with `longitud`/`latitud` and point size `items_distinct`: points aggregate per project location, so marker size reflects distinct items. The base map in Superset 4.1.2 comes from Mapbox and requires `MAPBOX_API_KEY` on the Superset service; without it markers render on an empty background. Coordinates and addresses are visible to every viewer within their row-level scope.
+
 ## Embedding Dashboard Principal in the admin application
 
 The React app exposes the published Superset dashboard at `/analytics` through the official `@superset-ui/embedded-sdk` 0.4.0. Embedding is opt-in (`SUPERSET_EMBEDDING_ENABLED=false` by default). The API issues short-lived, dashboard-only guest tokens; it never accepts a dashboard ID or row scope from the browser. The guest token expires after five minutes and the SDK requests a new one through the authenticated API client. Guest-token responses are not cacheable.

@@ -1,6 +1,6 @@
 # Ingevec database ERD
 
-This diagram reflects the current `app` schema represented by the SQLAlchemy models and Alembic migrations through revision `20261019_0025`. Analytics views are not shown as physical tables; the reporting datasets are described below the diagram and in `docs/superset-analytics.md`.
+This diagram reflects the current `app` schema represented by the SQLAlchemy models and Alembic migrations through revision `20261020_0026`. Analytics views are not shown as physical tables; the reporting datasets are described below the diagram and in `docs/superset-analytics.md`.
 
 `PK` denotes a primary key, `FK` a foreign key, and `UK` a unique key. Attributes marked `nullable` are optional. Junction tables use composite primary keys. Crow's-foot relationships show whether the foreign key is required and whether multiple child rows are allowed.
 
@@ -212,3 +212,5 @@ Migration `20261006_0022` clears the legacy subcontractor catalog, removes its a
 Migration `20261008_0024` removes the `item_type` catalog and `postventa_item.item_type_id`. The original workbook cells remain in `excel_source_row.raw_cells` for provenance; normalized postventa items and analytics views no longer expose item type. The migration drops the item-type catalog and assignments, so restoring them requires a database backup.
 
 Migration `20261019_0025` adds `failure_cause_category_link.group_id`, its composite foreign key and index, and makes the cause analytics views group-aware. It is additive and approved for automatic deployment; assigning groups, splitting causes used by several groups, and replacing item causes is the separate reviewed operation in `docs/cause-group-assignment.md`.
+
+Migration `20261020_0026` appends `latitud`, `longitud` (double precision) and `direccion` from `project` to the end of `analytics.postventa_item_dashboard` for Superset maps. Existing view columns, dataset metrics and grants are unchanged; it is additive and approved for automatic deployment.
