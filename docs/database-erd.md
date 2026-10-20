@@ -1,6 +1,6 @@
 # Ingevec database ERD
 
-This diagram reflects the current `app` schema represented by the SQLAlchemy models and Alembic migrations through revision `20261008_0024`. Analytics views are not shown as physical tables; the reporting datasets are described below the diagram and in `docs/superset-analytics.md`.
+This diagram reflects the current `app` schema represented by the SQLAlchemy models and Alembic migrations through revision `20261019_0025`. Analytics views are not shown as physical tables; the reporting datasets are described below the diagram and in `docs/superset-analytics.md`.
 
 `PK` denotes a primary key, `FK` a foreign key, and `UK` a unique key. Attributes marked `nullable` are optional. Junction tables use composite primary keys. Crow's-foot relationships show whether the foreign key is required and whether multiple child rows are allowed.
 
@@ -23,6 +23,7 @@ erDiagram
     FAILURE_CAUSE ||--o{ FAILURE_CAUSE_CATEGORY_LINK : classified_as
     FAILURE_CAUSE_CATEGORY ||--o{ FAILURE_CAUSE_CATEGORY_GROUP_LINK : grouped_as
     FAILURE_CAUSE_GROUP ||--o{ FAILURE_CAUSE_CATEGORY_GROUP_LINK : contains
+    FAILURE_CAUSE_CATEGORY_GROUP_LINK |o--o{ FAILURE_CAUSE_CATEGORY_LINK : assigns_cause_group
     FAILURE_CAUSE ||--o{ FAILURE_CAUSE_ALIAS : has
     FAILURE_CAUSE o|--o{ POSTVENTA_ITEM : legacy_primary_cause
     POSTVENTA_ITEM ||--o{ POSTVENTA_ITEM_FAILURE_CAUSE : receives
@@ -125,8 +126,9 @@ erDiagram
         timestamptz created_at
     }
     FAILURE_CAUSE_CATEGORY_LINK {
-        int failure_cause_id PK, FK
+        int failure_cause_id PK, FK "unique"
         int category_id PK, FK
+        int group_id FK "nullable; (category_id, group_id) references FAILURE_CAUSE_CATEGORY_GROUP_LINK"
     }
     FAILURE_CAUSE_GROUP {
         int id PK
@@ -203,8 +205,10 @@ erDiagram
 
 Additional unique constraints: `excel_source_row` is unique on `(excel_import_id, sheet_name, row_number)`, and `document_outbox_event` is unique on `(document_id, subject)`.
 
-`failure_cause_group` is seeded with the three fixed groups: `EJECUCION` (Ejecución), `PROPIETARIO` (Propietario), and `DISENO` (Diseño). The codes are stable identifiers; `display_name_es` contains the accented labels `Propietario`, `Ejecución`, and `Diseño`. Group-to-category assignments are stored in `failure_cause_category_group_link`. Cause-level analytics includes these labels; because causes can have multiple categories and categories can have multiple groups, it must be treated as an item–cause–category–group grain. Group/category charts should use distinct item counts when aggregating across dimensions.
+`failure_cause_group` is seeded with the three fixed groups: `EJECUCION` (Ejecución), `PROPIETARIO` (Propietario), and `DISENO` (Diseño). The codes are stable identifiers; `display_name_es` contains the accented labels `Propietario`, `Ejecución`, and `Diseño`. Group-to-category assignments are stored in `failure_cause_category_group_link` (many-to-many). Each cause belongs to at most one category and at most one group: `failure_cause_category_link.group_id` is nullable, and the composite foreign key `(category_id, group_id)` → `failure_cause_category_group_link` (`ON DELETE RESTRICT`) guarantees that the cause's group contains its category. A cause without a group is unassigned. Cause-level analytics reports a grouped cause under its own group only; an unassigned cause still falls back to every group of its category. Group/category charts should use distinct item counts when aggregating across dimensions.
 
 Migration `20261006_0022` clears the legacy subcontractor catalog, removes its association from `postventa_item`, and creates the speciality-to-subcontractor and project-to-subcontractor relationships. Specialities, subcontractors, and project assignments are managed directly in the database. Excel imports preserve source cells, including subcontractor text, in `excel_source_row.raw_cells`; they do not create or update subcontractor records or project assignments.
 
 Migration `20261008_0024` removes the `item_type` catalog and `postventa_item.item_type_id`. The original workbook cells remain in `excel_source_row.raw_cells` for provenance; normalized postventa items and analytics views no longer expose item type. The migration drops the item-type catalog and assignments, so restoring them requires a database backup.
+
+Migration `20261019_0025` adds `failure_cause_category_link.group_id`, its composite foreign key and index, and makes the cause analytics views group-aware. It is additive and approved for automatic deployment; assigning groups, splitting causes used by several groups, and replacing item causes is the separate reviewed operation in `docs/cause-group-assignment.md`.

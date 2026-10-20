@@ -89,11 +89,18 @@ Cause/category links SHALL preserve the following invariants:
 - Each cause SHALL link to at most one category through `app.failure_cause_category_link` (unique `failure_cause_id`); this junction table is kept.
 - Items MAY have multiple causes from different categories.
 - Retired shared causes SHALL be inactive with no category links; category-qualified aliases distinguish causes with the same display name.
+- Each cause SHALL belong to at most one group through the nullable `app.failure_cause_category_link.group_id`; the group SHALL contain the cause's category (composite foreign key to `app.failure_cause_category_group_link`). A cause without a group is unassigned.
+- A cause used by several groups SHALL be split into one cause per group; group-qualified aliases distinguish causes with the same display name and category.
 
 #### Scenario: Category-qualified cause
 - **WHEN** a cause is assigned to a category
 - **THEN** it has no more than one category link
 - **AND** an item can still have separate causes from multiple categories
+
+#### Scenario: Group-specific cause
+- **WHEN** causes of a category are listed for a group
+- **THEN** only causes assigned to that group and category are returned
+- **AND** a category shared by several groups shows different causes per group
 
 ### Requirement: Cause group/category associations
 Groups and categories SHALL have a many-to-many relationship through `app.failure_cause_category_group_link`. Spanish accents in `display_name_es` labels SHALL be preserved.

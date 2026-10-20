@@ -28,6 +28,7 @@ class ImportSummary:
     duplicate_mappings: int
     missing_categories: tuple[str, ...]
     missing_causes: tuple[str, ...]
+    groups_cleared: tuple[str, ...] = ()
 
 
 def load_mapping(path: Path) -> dict[str, list[str]]:
@@ -81,6 +82,19 @@ def import_mapping(db: Session, mapping: dict[str, list[str]], *, dry_run: bool 
         if category_code in categories and cause_code in causes
     }
     duplicate_mappings = sum(len(codes) for codes in mapping.values()) - len(requested_pairs)
+    # A cause keeps its group only while it stays in the same category (the group must contain it).
+    current = {cause_id: (category_id, group_id) for cause_id, category_id, group_id in db.execute(
+        select(FailureCauseCategoryLink.failure_cause_id, FailureCauseCategoryLink.category_id, FailureCauseCategoryLink.group_id))}
+    kept_group = {
+        cause_code: current[causes[cause_code].id][1]
+        for category_code, cause_code in valid_pairs
+        if current.get(causes[cause_code].id, (None, None))[0] == categories[category_code].id
+    }
+    codes_by_id = {cause.id: code for code, cause in causes.items()}
+    groups_cleared = tuple(sorted(
+        codes_by_id.get(cause_id, str(cause_id)) for cause_id, (_, group_id) in current.items()
+        if group_id is not None and kept_group.get(codes_by_id.get(cause_id)) is None
+    ))
 
     if not dry_run:
         with db.begin_nested():
@@ -89,6 +103,7 @@ def import_mapping(db: Session, mapping: dict[str, list[str]], *, dry_run: bool 
                 FailureCauseCategoryLink(
                     failure_cause_id=causes[cause_code].id,
                     category_id=categories[category_code].id,
+                    group_id=kept_group.get(cause_code),
                 )
                 for category_code, cause_code in sorted(valid_pairs)
             ])
@@ -102,6 +117,7 @@ def import_mapping(db: Session, mapping: dict[str, list[str]], *, dry_run: bool 
         duplicate_mappings=duplicate_mappings,
         missing_categories=missing_categories,
         missing_causes=missing_causes,
+        groups_cleared=groups_cleared,
     )
 
 
@@ -121,6 +137,8 @@ def log_summary(summary: ImportSummary, *, dry_run: bool) -> None:
         logger.warning("Skipped missing categories: %s", ", ".join(summary.missing_categories))
     if summary.missing_causes:
         logger.warning("Skipped missing causes: %s", ", ".join(summary.missing_causes))
+    if summary.groups_cleared:
+        logger.warning("Causes that lose their group (moved or unmapped): %s", ", ".join(summary.groups_cleared))
 
 
 def main() -> None:

@@ -21,6 +21,7 @@ from app.models import (
     FailureCause,
     FailureCauseCategory,
     FailureCauseCategoryLink,
+    FailureCauseGroup,
     Location,
     PostventaItem,
     PostventaItemFailureCause,
@@ -68,7 +69,7 @@ from app.services.document_processor import _location_score, _move_document
 from app.services.document_scanner import publish_pending_document_events
 from app.services.document_upload import DuplicateDocumentError, register_pdf_upload
 from app.services.failure_causes import create_failure_cause
-from app.services.failure_cause_groups import list_group_categories, list_groups
+from app.services.failure_cause_groups import list_group_categories, list_group_category_causes, list_groups
 from app.services.excel_importer import import_workbook
 from app.services.storage import delete_private_object, get_private_object
 
@@ -92,14 +93,15 @@ def _failure_cause_summaries(db: Session, item_ids: list[int]) -> dict[int, list
         return causes_by_item
     seen: set[tuple[int, str]] = set()
     cause_rows = db.execute(
-        select(PostventaItemFailureCause.postventa_item_id, FailureCause, FailureCauseCategory)
+        select(PostventaItemFailureCause.postventa_item_id, FailureCause, FailureCauseCategory, FailureCauseGroup)
         .join(FailureCause, FailureCause.id == PostventaItemFailureCause.failure_cause_id)
         .join(FailureCauseCategoryLink, FailureCauseCategoryLink.failure_cause_id == FailureCause.id)
         .join(FailureCauseCategory, FailureCauseCategory.id == FailureCauseCategoryLink.category_id)
+        .outerjoin(FailureCauseGroup, FailureCauseGroup.id == FailureCauseCategoryLink.group_id)
         .where(PostventaItemFailureCause.postventa_item_id.in_(item_ids))
         .order_by(PostventaItemFailureCause.postventa_item_id, FailureCause.display_name_es)
     ).all()
-    for item_id, cause, category in cause_rows:
+    for item_id, cause, category, group in cause_rows:
         if (item_id, cause.code) in seen:
             continue
         seen.add((item_id, cause.code))
@@ -108,6 +110,8 @@ def _failure_cause_summaries(db: Session, item_ids: list[int]) -> dict[int, list
             display_name_es=cause.display_name_es,
             category_code=category.code,
             category_name_es=category.display_name_es,
+            group_code=group.code if group else None,
+            group_name_es=group.display_name_es if group else None,
         ))
     return causes_by_item
 
@@ -257,15 +261,17 @@ def list_documents(
 @documents_router.get("/failure-causes", response_model=list[FailureCauseOption])
 def list_failure_causes(_: dict = Depends(require_admin), db: Session = Depends(get_db)) -> list[FailureCauseOption]:
     rows = db.execute(
-        select(FailureCause, FailureCauseCategory)
+        select(FailureCause, FailureCauseCategory, FailureCauseGroup)
         .join(FailureCauseCategoryLink, FailureCauseCategoryLink.failure_cause_id == FailureCause.id)
         .join(FailureCauseCategory, FailureCauseCategory.id == FailureCauseCategoryLink.category_id)
+        .outerjoin(FailureCauseGroup, FailureCauseGroup.id == FailureCauseCategoryLink.group_id)
         .where(FailureCause.is_active.is_(True))
-        .order_by(FailureCauseCategory.display_name_es, FailureCause.display_name_es)
+        .order_by(FailureCauseCategory.display_name_es, FailureCause.display_name_es, FailureCauseGroup.display_name_es)
     ).all()
     options: dict[str, FailureCauseOption] = {}
-    for cause, category in rows:
-        options.setdefault(cause.code, FailureCauseOption(code=cause.code, display_name_es=cause.display_name_es, category_name_es=category.display_name_es))
+    for cause, category, group in rows:
+        options.setdefault(cause.code, FailureCauseOption(code=cause.code, display_name_es=cause.display_name_es,
+            category_name_es=category.display_name_es, group_name_es=group.display_name_es if group else None))
     return list(options.values())
 
 
@@ -291,6 +297,7 @@ def create_new_failure_cause(
             code=payload.code,
             display_name_es=payload.display_name_es,
             category_code=payload.category_code,
+            group_code=payload.group_code,
             aliases=payload.aliases,
         )
     except LookupError as exc:
@@ -300,13 +307,14 @@ def create_new_failure_cause(
     except IntegrityError as exc:
         db.rollback()
         raise HTTPException(status_code=409, detail="The failure cause or one of its aliases already exists") from exc
-    category = db.scalar(
-        select(FailureCauseCategory)
+    category, group = db.execute(
+        select(FailureCauseCategory, FailureCauseGroup)
         .join(FailureCauseCategoryLink, FailureCauseCategoryLink.category_id == FailureCauseCategory.id)
+        .outerjoin(FailureCauseGroup, FailureCauseGroup.id == FailureCauseCategoryLink.group_id)
         .where(FailureCauseCategoryLink.failure_cause_id == cause.id)
-        .order_by(FailureCauseCategory.display_name_es)
-    )
-    return FailureCauseOption(code=cause.code, display_name_es=cause.display_name_es, category_name_es=category.display_name_es if category else "")
+    ).one()
+    return FailureCauseOption(code=cause.code, display_name_es=cause.display_name_es, category_name_es=category.display_name_es,
+        group_name_es=group.display_name_es if group else None)
 
 
 @documents_router.get("/{document_public_id}", response_model=DocumentDetail)
@@ -504,6 +512,17 @@ def list_failure_cause_group_categories(group_code: str, _: dict = Depends(requi
     return [ItemCategoryOption(code=row.code, display_name_es=row.display_name_es, is_active=row.is_active) for row in rows]
 
 
+@failure_cause_groups_router.get("/{group_code}/categories/{category_code}/causes", response_model=list[ItemCategoryOption])
+def list_failure_cause_group_category_causes(
+    group_code: str, category_code: str, _: dict = Depends(require_admin), db: Session = Depends(get_db)
+) -> list[ItemCategoryOption]:
+    try:
+        rows = list_group_category_causes(db, group_code, category_code)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return [ItemCategoryOption(code=row.code, display_name_es=row.display_name_es, is_active=row.is_active) for row in rows]
+
+
 @item_categories_router.get("/{category_code}/causes", response_model=list[ItemCategoryOption])
 def list_category_causes(category_code: str, _: dict = Depends(require_admin), db: Session = Depends(get_db)) -> list[ItemCategoryOption]:
     category = db.scalar(select(FailureCauseCategory).where(FailureCauseCategory.code == category_code))
@@ -578,13 +597,15 @@ def list_items_by_category(
     causes_by_item: dict[int, list[CategoryItemCause]] = {item_id: [] for item_id in item_ids}
     if item_ids:
         cause_rows = db.execute(
-            select(PostventaItemFailureCause.postventa_item_id, FailureCause.code, FailureCause.display_name_es)
+            select(PostventaItemFailureCause.postventa_item_id, FailureCause.code, FailureCause.display_name_es, FailureCauseGroup.display_name_es)
             .join(FailureCause, FailureCause.id == PostventaItemFailureCause.failure_cause_id)
+            .outerjoin(FailureCauseCategoryLink, FailureCauseCategoryLink.failure_cause_id == FailureCause.id)
+            .outerjoin(FailureCauseGroup, FailureCauseGroup.id == FailureCauseCategoryLink.group_id)
             .where(PostventaItemFailureCause.postventa_item_id.in_(item_ids))
             .order_by(PostventaItemFailureCause.postventa_item_id, FailureCause.display_name_es)
         ).all()
-        for item_id, code, name in cause_rows:
-            causes_by_item[item_id].append(CategoryItemCause(code=code, display_name_es=name))
+        for item_id, code, name, group_name in cause_rows:
+            causes_by_item[item_id].append(CategoryItemCause(code=code, display_name_es=name, group_name_es=group_name))
     items = [CategoryItem(id=item.id, public_id=item.public_id, project_id=item.project_id, project_name=project_name,
         notes=item.notes, failure_causes=causes_by_item[item.id], has_document=has_document)
         for item, project_name, has_document in rows]

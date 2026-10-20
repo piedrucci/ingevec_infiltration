@@ -9,6 +9,8 @@ import { ErrorMessage, LoadingIndicator, ReconciliationBadge } from "../document
 import { Button } from "../../components/ui/button";
 import { MultiSelectCombobox } from "../../components/ui/combobox";
 import { Input } from "../../components/ui/input";
+import { failureCauseLabel } from "../../lib/failure-causes";
+import { useFailureCauseGroups } from "../../queries/failure-cause-groups";
 import { Select as BaseSelect, SelectContent as BaseSelectContent, SelectItem as BaseSelectItem, SelectTrigger as BaseSelectTrigger, SelectValue as BaseSelectValue } from "../../components/ui/base-select";
 
 const suggestedCode = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z0-9]+/g, "_").replace(/^_|_$/g, "");
@@ -23,10 +25,12 @@ export function ItemEvaluationPage() {
   const itemQuery = usePostventaItem(publicId);
   const causesQuery = useFailureCauses();
   const categoriesQuery = useFailureCauseCategories();
+  const groupsQuery = useFailureCauseGroups();
   const [causeCodes, setCauseCodes] = useState<string[]>([]);
   const [newCauseName, setNewCauseName] = useState("");
   const [newCauseCode, setNewCauseCode] = useState("");
   const [newCauseCategory, setNewCauseCategory] = useState("");
+  const [newCauseGroup, setNewCauseGroup] = useState("");
   const [newCauseAliases, setNewCauseAliases] = useState("");
   const item = itemQuery.data;
 
@@ -53,10 +57,10 @@ export function ItemEvaluationPage() {
     },
   });
   const createCauseMutation = useMutation({
-    mutationFn: () => createFailureCause({ code: newCauseCode, displayNameEs: newCauseName, categoryCode: newCauseCategory, aliases: newCauseAliases.split(",").map((alias) => alias.trim()).filter(Boolean) }),
+    mutationFn: () => createFailureCause({ code: newCauseCode, displayNameEs: newCauseName, categoryCode: newCauseCategory, groupCode: newCauseGroup, aliases: newCauseAliases.split(",").map((alias) => alias.trim()).filter(Boolean) }),
     onSuccess: async (cause) => {
       setCauseCodes((current) => current.includes(cause.code) ? current : [...current, cause.code]);
-      setNewCauseName(""); setNewCauseCode(""); setNewCauseCategory(""); setNewCauseAliases("");
+      setNewCauseName(""); setNewCauseCode(""); setNewCauseCategory(""); setNewCauseGroup(""); setNewCauseAliases("");
       await queryClient.invalidateQueries({ queryKey: documentQueryKeys.failureCauses() });
     },
   });
@@ -83,7 +87,7 @@ export function ItemEvaluationPage() {
             <label htmlFor="normalized-causes">Causas normalizadas</label>
             <MultiSelectCombobox
               id="normalized-causes"
-              options={causesQuery.data?.map((cause) => ({ value: cause.code, label: `${cause.category_name_es} · ${cause.display_name_es}` })) ?? []}
+              options={causesQuery.data?.map((cause) => ({ value: cause.code, label: failureCauseLabel(cause) })) ?? []}
               value={causeCodes}
               onValueChange={setCauseCodes}
               placeholder="Selecciona causas"
@@ -110,6 +114,13 @@ export function ItemEvaluationPage() {
               <BaseSelect value={newCauseCategory || null} onValueChange={(value) => setNewCauseCategory(value ?? "")}>
                 <BaseSelectTrigger><BaseSelectValue placeholder="Selecciona una categoría" /></BaseSelectTrigger>
                 <BaseSelectContent>{categoriesQuery.data?.map((category) => <BaseSelectItem key={category.code} value={category.code}>{category.display_name_es}</BaseSelectItem>)}</BaseSelectContent>
+              </BaseSelect>
+            </label>
+            <label>
+              Grupo
+              <BaseSelect value={newCauseGroup || null} onValueChange={(value) => setNewCauseGroup(value ?? "")}>
+                <BaseSelectTrigger><BaseSelectValue placeholder="Sin grupo" /></BaseSelectTrigger>
+                <BaseSelectContent>{groupsQuery.data?.map((group) => <BaseSelectItem key={group.code} value={group.code}>{group.display_name_es}</BaseSelectItem>)}</BaseSelectContent>
               </BaseSelect>
             </label>
             <label>Alias de detección (separados por coma)<input value={newCauseAliases} onChange={(event) => setNewCauseAliases(event.target.value)} /></label>

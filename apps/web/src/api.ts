@@ -242,6 +242,10 @@ export function getGroupCategories(groupCode: string): Promise<ItemCategoryOptio
   return request<ItemCategoryOption[]>(`/v1/failure-cause-groups/${encodeURIComponent(groupCode)}/categories`);
 }
 
+export function getGroupCategoryCauses(groupCode: string, categoryCode: string): Promise<ItemCategoryOption[]> {
+  return request<ItemCategoryOption[]>(`/v1/failure-cause-groups/${encodeURIComponent(groupCode)}/categories/${encodeURIComponent(categoryCode)}/causes`);
+}
+
 export function getCategoryItems(categoryCode: string, options: { causeCode?: string; search?: string; limit?: number; offset?: number; sortBy?: "project_id" | "project_name" | "notes"; sortDirection?: "asc" | "desc" } = {}): Promise<CategoryItemsResponse> {
   const query = new URLSearchParams({
     limit: String(options.limit ?? 10),
@@ -255,12 +259,12 @@ export function getCategoryItems(categoryCode: string, options: { causeCode?: st
   return request<CategoryItemsResponse>(`/v1/item-categories/${encodeURIComponent(categoryCode)}/items${suffix}`);
 }
 
-export function createFailureCause(input: { code: string; displayNameEs: string; categoryCode: string; aliases: string[] }): Promise<FailureCauseOption> {
+export function createFailureCause(input: { code: string; displayNameEs: string; categoryCode: string; groupCode?: string; aliases: string[] }): Promise<FailureCauseOption> {
   return accessToken().then(async (token) => {
     const response = await fetch(apiUrl("/v1/documents/failure-causes"), {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ code: input.code, display_name_es: input.displayNameEs, category_code: input.categoryCode, aliases: input.aliases }),
+      body: JSON.stringify({ code: input.code, display_name_es: input.displayNameEs, category_code: input.categoryCode, group_code: input.groupCode || null, aliases: input.aliases }),
     });
     if (!response.ok) {
       const payload = await response.json().catch(() => null) as { detail?: string } | null;

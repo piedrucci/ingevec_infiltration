@@ -38,7 +38,7 @@ export type PostventaItem = {
   notes: string;
   request_date: string | null;
   handled_by: string | null;
-  failure_causes: { code: string; display_name_es: string; category_name_es: string }[];
+  failure_causes: { code: string; display_name_es: string; category_name_es: string; group_name_es?: string | null }[];
   document: DocumentSummary | null;
   reconciliation_status: "PENDING" | "RECONCILED";
   has_document: boolean;
@@ -49,7 +49,7 @@ export type PageResponse<T> = { items: T[]; page: Page };
 export type DashboardBreakdown = { name: string; count: number; code?: string | null };
 export type ItemCategoryOption = { code: string; display_name_es: string; is_active: boolean };
 export type FailureCauseGroupOption = { code: string; display_name_es: string };
-export type CategoryItem = { id: number; public_id: string; project_id: string; project_name: string; notes: string; failure_causes: { code: string; display_name_es: string }[]; has_document: boolean };
+export type CategoryItem = { id: number; public_id: string; project_id: string; project_name: string; notes: string; failure_causes: { code: string; display_name_es: string; group_name_es?: string | null }[]; has_document: boolean };
 export type CategoryItemsResponse = { items: CategoryItem[]; total: number };
 export type DashboardSubcontractorBreakdown = { id: number; name: string; speciality: string; project_count: number };
 export type DashboardSubcontractorProject = { project_id: string; project_name: string };
@@ -113,7 +113,7 @@ export type DocumentAssociation = {
   association_source: "AUTOMATIC" | "MANUAL";
   confidence: number | null;
   rationale: string | null;
-  failure_causes: { code: string; display_name_es: string; category_code: string; category_name_es: string }[];
+  failure_causes: { code: string; display_name_es: string; category_code: string; category_name_es: string; group_code?: string | null; group_name_es?: string | null }[];
 };
 
 export type DocumentDetail = Document & { associations: DocumentAssociation[] };
@@ -138,6 +138,7 @@ export type FailureCauseOption = {
   code: string;
   display_name_es: string;
   category_name_es: string;
+  group_name_es?: string | null;
 };
 
 export type FailureCauseCategoryOption = {

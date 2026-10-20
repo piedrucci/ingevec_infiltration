@@ -6,12 +6,14 @@ schema in the `Ingevec Postventa Analytics` database:
 | Dataset | Grain | Intended use |
 | --- | --- | --- |
 | `analytics.postventa_item_dashboard` | Item × associated document (currently one row per item) | Overall volume, reconciliation status, project/division summaries, document status |
-| `analytics.postventa_item_cause_dashboard` | Item × assigned cause × category × group | Cause, category, and group analysis |
-| `analytics.postventa_item_cause_pareto` | Item × assigned cause × category × group | Filter-aware Pareto charts by cause |
+| `analytics.postventa_item_cause_dashboard` | Item × assigned cause (× category groups only for unassigned causes) | Cause, category, and group analysis |
+| `analytics.postventa_item_cause_pareto` | Item × assigned cause (× category groups only for unassigned causes) | Filter-aware Pareto charts by cause |
 
 The item dataset can produce multiple rows for an item if multiple documents are
-associated later. The cause dataset expands rows across the many-to-many cause,
-category, and group links. Therefore, do not use raw row counts as item counts.
+associated later. The cause datasets have one row per item and assigned cause when
+the cause has a group (migration `20261019_0025`); a cause without a group still
+expands across every group of its category. Therefore, do not use raw row counts
+as item counts.
 
 Recommended measures:
 
@@ -39,8 +41,8 @@ permissions without SQL Lab access. Both roles receive access only to the three
 curated datasets, and all are subject to project/division row-level scope.
 `superset_admin` remains the unrestricted Superset administrator role.
 
-An item can belong to more than one group through its categories, so group
-breakdowns are non-additive: summing group totals may exceed the overall number
+An item can belong to more than one group through causes of different groups (or
+through an unassigned cause's category), so group breakdowns are non-additive: summing group totals may exceed the overall number
 of distinct items. Cause/category/group labels are nullable where catalog links
 have not been assigned; keep those rows visible when auditing incomplete
 classification, or explicitly exclude null labels for finalized reporting.

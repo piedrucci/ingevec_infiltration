@@ -52,8 +52,11 @@ El Compose de producción define un servicio migrate de ejecución única. Antes
 de que API o worker nuevos arranquen, el servicio toma un advisory lock de
 PostgreSQL, vuelve a leer el historial, valida toda la cadena pendiente contra
 apps/api/migrations/migration_policy.json y ejecuta sólo revisiones marcadas
-auto_apply. La lista vacía actual es intencional: las revisiones no se aplican
-automáticamente hasta que se revisen y clasifiquen. Agrega cada nueva revisión
+auto_apply. Actualmente sólo 20261019_0025 (columna aditiva group_id; ver
+docs/cause-group-assignment.md) está aprobada; si la cadena pendiente incluye
+una revisión manual, como 0023 o 0024, el gate bloquea el despliegue completo.
+Las revisiones no se aplican automáticamente hasta que se revisen y
+clasifiquen. Agrega cada nueva revisión
 al manifiesto sólo después de verificar que es compatible con la versión de
 aplicación todavía activa.
 

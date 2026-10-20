@@ -11,6 +11,7 @@ import { Button } from "../../components/ui/button";
 import { IconActionLink } from "../../components/IconActionLink";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
 import { Badge } from "../../components/ui/badge";
+import { failureCauseLabel } from "../../lib/failure-causes";
 import { ErrorMessage, LoadingIndicator } from "../documents/components";
 
 const PAGE_SIZE = 10;
@@ -64,7 +65,7 @@ export function CategoryItemsPage() {
     { accessorKey: "project_id", header: ({ column }) => <SortHeader label="N Obra" column={column} /> },
     { accessorKey: "project_name", header: ({ column }) => <SortHeader label="Proyecto" column={column} /> },
     { accessorKey: "notes", header: ({ column }) => <SortHeader label="Observación" column={column} />, cell: ({ row }) => <span className="block max-w-[32rem] truncate" title={row.original.notes}>{row.original.notes}</span> },
-    { id: "causes", header: "Causas", enableSorting: false, cell: ({ row }) => row.original.failure_causes.map((cause) => <Badge className="mr-1 mb-1" key={cause.code} variant="secondary">{cause.display_name_es}</Badge>) },
+    { id: "causes", header: "Causas", enableSorting: false, cell: ({ row }) => row.original.failure_causes.map((cause) => <Badge className="mr-1 mb-1" key={cause.code} variant="secondary">{failureCauseLabel(cause)}</Badge>) },
     { id: "pdf", header: "PDF", enableSorting: false, cell: ({ row }) => row.original.has_document ? "Sí" : "No" },
     { id: "action", header: "", enableSorting: false, cell: ({ row }) => <IconActionLink aria-label="Evaluar ítem" title="Evaluar ítem" to={`/items/${row.original.public_id}/evaluation?returnTo=${encodeURIComponent(`${location.pathname}${location.search}`)}`}><Pencil aria-hidden="true" /></IconActionLink> },
   ], []);

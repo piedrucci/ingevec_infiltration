@@ -41,6 +41,7 @@ class FailureCauseGroupOption(BaseModel):
 class CategoryItemCause(BaseModel):
     code: str
     display_name_es: str
+    group_name_es: str | None = None
 
 
 class CategoryItem(BaseModel):
@@ -154,6 +155,8 @@ class FailureCauseSummary(BaseModel):
     display_name_es: str
     category_code: str
     category_name_es: str
+    group_code: str | None = None
+    group_name_es: str | None = None
 
 
 class DocumentSummary(BaseModel):
@@ -214,6 +217,7 @@ class FailureCauseOption(BaseModel):
     code: str
     display_name_es: str
     category_name_es: str
+    group_name_es: str | None = None
 
 
 class FailureCauseCategoryOption(BaseModel):
@@ -225,6 +229,7 @@ class CreateFailureCauseRequest(BaseModel):
     code: str = Field(min_length=2, max_length=100)
     display_name_es: str = Field(min_length=2, max_length=255)
     category_code: str = Field(min_length=2, max_length=100)
+    group_code: str | None = Field(default=None, min_length=2, max_length=100)
     aliases: list[str] = Field(default_factory=list, max_length=20)
 
 

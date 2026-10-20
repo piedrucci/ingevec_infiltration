@@ -114,8 +114,8 @@ Para ejecutar la UI fuera de Docker:
 ```bash
 cd apps/web
 cp .env.example .env.local
-npm install
-npm run dev
+pnpm install
+pnpm dev
 ```
 
 El proxy de Vite entrega las llamadas `/v1` al API local. No guardar tokens ni secretos de Keycloak en archivos del frontend.
@@ -139,3 +139,9 @@ Estas rutas requieren un token de Keycloak con el rol `admin`. Todas son paginad
 - `GET /v1/dashboard/summary`: devuelve KPIs y agrupaciones para el Inicio administrativo.
 
 Cada respuesta tiene la forma `{ "items": [...], "page": { "total": 0, "limit": 50, "offset": 0 } }`.
+
+Catálogo de causas por grupo (página **Grupos**). Estas rutas no son paginadas y devuelven listas ordenadas alfabéticamente:
+
+- `GET /v1/failure-cause-groups`: grupos de causa (Diseño, Ejecución, Propietario).
+- `GET /v1/failure-cause-groups/{group_code}/categories`: categorías del grupo.
+- `GET /v1/failure-cause-groups/{group_code}/categories/{category_code}/causes`: causas asignadas a ese grupo y categoría. Cada causa pertenece a una sola categoría y a lo sumo a un grupo; ver `docs/cause-group-assignment.md`.

@@ -90,3 +90,34 @@ def test_group_categories_returns_404_for_unknown_group(client, monkeypatch):
 
 def test_group_endpoints_require_authentication():
     assert TestClient(app).get("/v1/failure-cause-groups").status_code == 401
+
+
+def test_list_group_category_causes_filters_by_assigned_group():
+    session = FakeSession(scalars_result=["cause"])
+    session.execute = lambda statement: session.statements.append(statement) or SimpleNamespace(first=lambda: (1, 10))
+
+    assert failure_cause_groups.list_group_category_causes(session, "DISENO", "WINDOWS") == ["cause"]
+    sql = compiled(session.statements[1])
+    assert "app.failure_cause_category_link.category_id = %(category_id_1)s" in sql
+    assert "app.failure_cause_category_link.group_id = %(group_id_1)s" in sql
+
+
+def test_list_group_category_causes_rejects_pair_outside_group():
+    session = FakeSession()
+    session.execute = lambda statement: SimpleNamespace(first=lambda: None)
+    with pytest.raises(LookupError):
+        failure_cause_groups.list_group_category_causes(session, "DISENO", "SHEET_METAL")
+
+
+def test_group_category_causes_endpoint(client, monkeypatch):
+    monkeypatch.setattr("app.api.list_group_category_causes", lambda db, group, category: [
+        SimpleNamespace(code="BROKEN_SEALS__WINDOWS__EJECUCION", display_name_es="Sellos cortados", is_active=True)])
+    response = client.get("/v1/failure-cause-groups/EJECUCION/categories/WINDOWS/causes")
+    assert response.status_code == 200
+    assert response.json() == [{"code": "BROKEN_SEALS__WINDOWS__EJECUCION", "display_name_es": "Sellos cortados", "is_active": True}]
+
+    def missing(db, group, category):
+        raise LookupError("Group or category not found")
+
+    monkeypatch.setattr("app.api.list_group_category_causes", missing)
+    assert client.get("/v1/failure-cause-groups/DISENO/categories/SHEET_METAL/causes").status_code == 404

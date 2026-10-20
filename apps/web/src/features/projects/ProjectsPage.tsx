@@ -6,6 +6,7 @@ import type { ColumnDef, StockFeatures } from "@tanstack/react-table";
 import { usePostventaItems } from "../../queries/postventa-items";
 import { useProjects } from "../../queries/projects";
 import type { PostventaItem } from "../../types";
+import { failureCauseLabel } from "../../lib/failure-causes";
 import { ErrorMessage, LoadingIndicator, ReconciliationBadge } from "../documents/components";
 import { useUrlSearchParams } from "../evaluation/useEvaluationSearchParams";
 import { DataTable } from "../../components/DataTable";
@@ -51,7 +52,7 @@ export function ProjectsPage() {
       enableSorting: false,
       cell: ({ row }) => <div className="flex max-w-full flex-wrap content-start gap-1 whitespace-normal">
         {row.original.failure_causes.length
-          ? row.original.failure_causes.map((cause) => <Badge className="shrink-0" key={cause.code} variant="secondary">{cause.category_name_es ? `${cause.category_name_es} · ${cause.display_name_es}` : cause.display_name_es}</Badge>)
+          ? row.original.failure_causes.map((cause) => <Badge className="shrink-0" key={cause.code} variant="secondary">{failureCauseLabel(cause)}</Badge>)
           : "Sin causa"}
       </div>,
     },

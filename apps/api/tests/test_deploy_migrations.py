@@ -127,9 +127,10 @@ def test_actual_release_blocks_the_manual_item_type_drop():
     with pytest.raises(MigrationGateError, match="20261008_0024"):
         plan_pending_revisions(script, ("20261008_0023",), real_policy)
 
+    # The additive cause-group column is the only revision after 0024 and is approved for automatic apply.
     assert plan_pending_revisions(script, ("20261008_0024",), real_policy) == (
-        "20261008_0024",
-        [],
+        "20261019_0025",
+        ["20261019_0025"],
     )
 
 

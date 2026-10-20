@@ -1,7 +1,7 @@
 import uuid
 from decimal import Decimal
 from datetime import date, datetime
-from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, ForeignKey, Index, Integer, Numeric, String, Text, UniqueConstraint, func
+from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, ForeignKey, ForeignKeyConstraint, Index, Integer, Numeric, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from app.db import Base
@@ -59,10 +59,22 @@ class FailureCauseCategory(Base):
 
 class FailureCauseCategoryLink(Base):
     __tablename__ = 'failure_cause_category_link'
-    __table_args__ = (UniqueConstraint('failure_cause_id', name='uq_failure_cause_category_link_cause'), {'schema': 'app'})
+    __table_args__ = (
+        UniqueConstraint('failure_cause_id', name='uq_failure_cause_category_link_cause'),
+        ForeignKeyConstraint(
+            ['category_id', 'group_id'],
+            ['app.failure_cause_category_group_link.category_id', 'app.failure_cause_category_group_link.group_id'],
+            name='fk_failure_cause_category_link_category_group',
+            ondelete='RESTRICT',
+        ),
+        Index('ix_failure_cause_category_link_group_id', 'group_id'),
+        {'schema': 'app'},
+    )
 
     failure_cause_id: Mapped[int] = mapped_column(ForeignKey('app.failure_cause.id', ondelete='CASCADE'), primary_key=True)
     category_id: Mapped[int] = mapped_column(ForeignKey('app.failure_cause_category.id', ondelete='CASCADE'), primary_key=True)
+    # Nullable: a cause without a group is unassigned. When set, the group must contain the category.
+    group_id: Mapped[int | None] = mapped_column(Integer)
 
 
 class FailureCauseGroup(Base):

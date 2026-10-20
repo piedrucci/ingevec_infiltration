@@ -20,6 +20,10 @@ vi.mock("../../api", () => ({
   replacePostventaItemFailureCauses: replaceCauses,
 }));
 
+vi.mock("../../queries/failure-cause-groups", () => ({
+  useFailureCauseGroups: () => ({ data: [{ code: "EJECUCION", display_name_es: "Ejecución" }], error: null, isLoading: false }),
+}));
+
 vi.mock("../../queries/postventa-items", () => ({
   postventaItemQueryKeys: { all: ["postventa-items"] },
   usePostventaItem: () => ({

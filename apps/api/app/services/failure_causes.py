@@ -6,7 +6,7 @@ import unicodedata
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import FailureCause, FailureCauseAlias, FailureCauseCategory, FailureCauseCategoryLink
+from app.models import FailureCause, FailureCauseAlias, FailureCauseCategory, FailureCauseCategoryGroupLink, FailureCauseCategoryLink, FailureCauseGroup
 
 
 def normalized_alias(value: str) -> str:
@@ -26,6 +26,7 @@ def create_failure_cause(
     display_name_es: str,
     category_code: str,
     aliases: list[str],
+    group_code: str | None = None,
 ) -> FailureCause:
     code = canonical_code(code)
     category_code = canonical_code(category_code)
@@ -35,10 +36,21 @@ def create_failure_cause(
     category = db.scalar(select(FailureCauseCategory).where(FailureCauseCategory.code == category_code, FailureCauseCategory.is_active.is_(True)))
     if category is None:
         raise LookupError("Failure-cause category does not exist or is inactive")
+    group = None
+    if group_code:
+        group = db.scalar(
+            select(FailureCauseGroup)
+            .join(FailureCauseCategoryGroupLink, FailureCauseCategoryGroupLink.group_id == FailureCauseGroup.id)
+            .where(FailureCauseGroup.code == canonical_code(group_code), FailureCauseCategoryGroupLink.category_id == category.id)
+        )
+        if group is None:
+            raise LookupError("Failure-cause group does not exist or does not contain the category")
     if db.scalar(select(FailureCause.id).where(FailureCause.code == code)) is not None:
         raise FileExistsError("A failure cause already uses that code")
 
-    normalized_aliases = {normalized_alias(alias) for alias in [f"{category.display_name_es} · {display_name_es}", *aliases] if normalized_alias(alias)}
+    # Qualify with the group too, so same-named causes of other groups in this category stay distinct.
+    qualified = f"{group.display_name_es} · {category.display_name_es} · {display_name_es}" if group else f"{category.display_name_es} · {display_name_es}"
+    normalized_aliases = {normalized_alias(alias) for alias in [qualified, *aliases] if normalized_alias(alias)}
     existing_alias = db.scalar(select(FailureCauseAlias).where(FailureCauseAlias.normalized_alias.in_(normalized_aliases))) if normalized_aliases else None
     if existing_alias is not None:
         raise FileExistsError("One of the aliases already belongs to another failure cause")
@@ -46,7 +58,7 @@ def create_failure_cause(
     cause = FailureCause(code=code, display_name_es=display_name_es, is_active=True)
     db.add(cause)
     db.flush()
-    db.add(FailureCauseCategoryLink(failure_cause_id=cause.id, category_id=category.id))
+    db.add(FailureCauseCategoryLink(failure_cause_id=cause.id, category_id=category.id, group_id=group.id if group else None))
     for alias in sorted(normalized_aliases):
         db.add(FailureCauseAlias(failure_cause_id=cause.id, normalized_alias=alias))
     db.commit()
