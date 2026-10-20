@@ -154,6 +154,8 @@ services:
       SUPERSET_GUEST_TOKEN_JWT_SECRET: ${SUPERSET_GUEST_TOKEN_JWT_SECRET:-}
       SUPERSET_EMBED_ALLOWED_ORIGINS: ${SUPERSET_EMBED_ALLOWED_ORIGINS:-}
       SUPERSET_GUEST_TOKEN_TTL_SECONDS: ${SUPERSET_GUEST_TOKEN_TTL_SECONDS:-300}
+      # Base map for deck.gl/MapBox charts; empty draws markers without a map.
+      MAPBOX_API_KEY: ${MAPBOX_API_KEY:-}
     command:
       - /bin/sh
       - -c

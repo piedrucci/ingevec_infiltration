@@ -68,7 +68,7 @@ Migration `20261019_0025` keeps the cause views' columns, so datasets and saved 
 
 ## Project map
 
-`analytics.postventa_item_dashboard` exposes `latitud`, `longitud` and `direccion` of each item's project (migration `20261020_0026`). After deploying, sync the dataset columns (Datasets → edit `postventa_item_dashboard` → Columns → **Sync columns from source**, or rerun `superset-provisioner`). For a marker map use **deck.gl Scatterplot** with `longitud`/`latitud` and point size `items_distinct`: points aggregate per project location, so marker size reflects distinct items. The base map in Superset 4.1.2 comes from Mapbox and requires `MAPBOX_API_KEY` on the Superset service; without it markers render on an empty background. Coordinates and addresses are visible to every viewer within their row-level scope.
+`analytics.postventa_item_dashboard` exposes `latitud`, `longitud` and `direccion` of each item's project (migration `20261020_0026`). After deploying, sync the dataset columns (Datasets → edit `postventa_item_dashboard` → Columns → **Sync columns from source**, or rerun `superset-provisioner`). For a marker map use **deck.gl Scatterplot** with `longitud`/`latitud` and point size `items_distinct`: points aggregate per project location, so marker size reflects distinct items. The base map in Superset 4.1.2 comes from Mapbox and requires `MAPBOX_API_KEY` on the Superset service (passed through `compose.yaml`; set it in the environment file or Dokploy, never in Git, and recreate Superset); without it markers render on an empty background. Use a Mapbox public token (`pk.`) restricted to the Superset URL. Coordinates and addresses are visible to every viewer within their row-level scope.
 
 ## Embedding Dashboard Principal in the admin application
 
