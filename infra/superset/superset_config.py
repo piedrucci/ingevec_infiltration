@@ -31,8 +31,25 @@ FEATURE_FLAGS = {
 APP_NAME = "Ingevec Postventa"
 APP_ICON = "/static/assets/images/ingevec_logo.png"
 
+# Since 6.1 the logo and window title come from theme tokens. Superset loads this file while
+# superset.config is executing, so its default themes are already defined and are extended here.
+from superset import config as _defaults  # noqa: E402
+
+_brand = {"brandAppName": APP_NAME, "brandLogoAlt": APP_NAME, "brandLogoUrl": APP_ICON}
+THEME_DEFAULT = {**_defaults.THEME_DEFAULT, "token": {**_defaults.THEME_DEFAULT["token"], **_brand}}
+THEME_DARK = {**_defaults.THEME_DARK, "token": {**_defaults.THEME_DARK["token"], **_brand}}
+
+# deck.gl base maps: OpenStreetMap needs no token; Mapbox styles use MAPBOX_API_KEY.
+DECKGL_BASE_MAP = [
+    ["https://tile.openstreetmap.org/{z}/{x}/{y}.png", "Calles (OpenStreetMap)"],
+    ["mapbox://styles/mapbox/light-v9", "Claro (Mapbox)"],
+    ["mapbox://styles/mapbox/streets-v9", "Calles (Mapbox)"],
+    ["mapbox://styles/mapbox/satellite-streets-v9", "Satélite con calles (Mapbox)"],
+]
+_font_hosts = [f"https://{domain}" for domain in _defaults.THEME_FONT_URL_ALLOWED_DOMAINS]
+
 # Dashboard Markdown images are restricted by Superset's Content Security
-# Policy. Allow the public web app host while retaining the other 4.1.2 rules.
+# Policy. Allow the public web app host while retaining the other 6.1.0 rules.
 TALISMAN_CONFIG = {
     "content_security_policy": {
         "base-uri": ["'self'"],
@@ -44,15 +61,18 @@ TALISMAN_CONFIG = {
             "https://apachesuperset.gateway.scarf.sh",
             "https://static.scarf.sh/",
             "https://app.capix.cloud",
+            "https://tile.openstreetmap.org",
         ],
         "worker-src": ["'self'", "blob:"],
         "connect-src": [
             "'self'",
             "https://api.mapbox.com",
             "https://events.mapbox.com",
+            "https://tile.openstreetmap.org",
         ],
         "object-src": "'none'",
-        "style-src": ["'self'", "'unsafe-inline'"],
+        "style-src": ["'self'", "'unsafe-inline'", *_font_hosts],
+        "font-src": ["'self'", *_font_hosts],
         "script-src": ["'self'", "'strict-dynamic'"],
     },
     "content_security_policy_nonce_in": ["script-src"],
@@ -159,7 +179,8 @@ class KeycloakSecurityManager(SupersetSecurityManager):
         # Keycloak user's missing-scope denial to an authenticated guest.
         if self.get_current_guest_user_if_guest():
             return filters
-        if table.schema != "analytics" or table.table_name not in {
+        # 6.x may pass non-table explorables (e.g. saved queries) without these attributes.
+        if getattr(table, "schema", None) != "analytics" or getattr(table, "table_name", None) not in {
             "postventa_item_dashboard",
             "postventa_item_cause_dashboard",
             "postventa_item_cause_pareto",
@@ -179,7 +200,9 @@ class KeycloakSecurityManager(SupersetSecurityManager):
             safe_projects = [value for value in projects if re.fullmatch(r"[A-Za-z0-9_-]+", value)]
             if safe_projects:
                 clauses.append("numero_obra IN (" + ",".join("'" + value + "'" for value in safe_projects) + ")")
-        return [*filters, SimpleNamespace(clause="(" + " OR ".join(clauses) + ")" if clauses else "1 = 0", group_key=None)]
+        # get_rls_sorted() sorts filters by id, so the scope filter needs one.
+        clause = "(" + " OR ".join(clauses) + ")" if clauses else "1 = 0"
+        return [*filters, SimpleNamespace(id=0, clause=clause, group_key=None)]
 
     def get_guest_rls_filters(self, dataset):
         """Require a nonempty guest RLS rule and deny every other dataset."""
@@ -187,7 +210,7 @@ class KeycloakSecurityManager(SupersetSecurityManager):
         if not guest:
             return super().get_guest_rls_filters(dataset)
         rules = super().get_guest_rls_filters(dataset)
-        curated = dataset.schema == "analytics" and dataset.table_name in {
+        curated = getattr(dataset, "schema", None) == "analytics" and getattr(dataset, "table_name", None) in {
             "postventa_item_dashboard",
             "postventa_item_cause_dashboard",
             "postventa_item_cause_pareto",

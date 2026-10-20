@@ -202,8 +202,11 @@ Compose del proyecto Dokploy:
 
 ```bash
 docker compose --env-file .env -f compose.yaml -f compose.prod.yaml \
-  --profile provision run --rm superset-provisioner
+  --profile provision run --rm --build superset-provisioner
 ```
+
+`--build` reconstruye la imagen del provisioner; sin él Compose reutiliza una
+imagen anterior que puede ser de otra versión de Superset.
 
 Vuelve a desplegar para que Superset cargue su secreto, su rol de guest y el
 CSP. Comprueba `can_read` y `can_grant_guest_token` en `SecurityRestApi` para el issuer, el

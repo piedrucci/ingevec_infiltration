@@ -26,10 +26,12 @@ ISSUER_ROLE = "Ingevec Guest Token Issuer"
 # permissions. Keep ordinary viewers read-only and grant authoring separately.
 VIEWER_PERMISSIONS = {
     ("can_csv", "Superset"),
-    # Legacy charts (all deck.gl maps in 4.1.2) load data through /superset/explore_json/,
+    # Legacy charts (all deck.gl maps, still legacy in 6.1.0) load data through /superset/explore_json/,
     # which still checks dataset access and row-level security.
     ("can_explore_json", "Superset"),
     ("can_read", "Chart"),
+    # Since 6.x the UI and the embedded page load the user's own roles from /api/v1/me/roles/.
+    ("can_read", "CurrentUserRestApi"),
     ("can_read", "Dashboard"),
     ("can_read", "DashboardFilterStateRestApi"),
     ("can_read", "DashboardPermalinkRestApi"),
@@ -122,8 +124,9 @@ def provision_reader(owner_uri: str) -> None:
     engine = create_engine(owner_uri)
     with engine.begin() as connection:
         exists = connection.scalar(text("SELECT 1 FROM pg_roles WHERE rolname = :role"), {"role": READER_ROLE})
-        if not exists:
-            connection.execute(text(f"CREATE ROLE {READER_ROLE} LOGIN PASSWORD :password"), {"password": os.environ["SUPERSET_ANALYTICS_DB_PASSWORD"]})
+        # ALTER keeps the role's password in sync, so rotating it only needs a new value and a rerun.
+        verb = "ALTER" if exists else "CREATE"
+        connection.execute(text(f"{verb} ROLE {READER_ROLE} LOGIN PASSWORD :password"), {"password": os.environ["SUPERSET_ANALYTICS_DB_PASSWORD"]})
         connection.execute(text(f"GRANT CONNECT ON DATABASE {database_name} TO {READER_ROLE}"))
         connection.execute(text(f"GRANT USAGE ON SCHEMA {ANALYTICS_SCHEMA} TO {READER_ROLE}"))
         views = ", ".join(f"{ANALYTICS_SCHEMA}.{view}" for view in ANALYTICS_VIEWS)
@@ -140,7 +143,8 @@ def register_superset_database(uri: str) -> None:
         database = db.session.query(Database).filter_by(database_name=DATABASE_NAME).one_or_none()
         if database is None:
             database = Database(database_name=DATABASE_NAME)
-        database.sqlalchemy_uri = uri
+        # Stores the password in Superset's encrypted column and masks it in the URI.
+        database.set_sqlalchemy_uri(uri)
         database.expose_in_sqllab = True
         database.allow_ctas = False
         database.allow_cvas = False
@@ -187,7 +191,7 @@ def register_superset_database(uri: str) -> None:
 
 
 def _provision_guest_issuer(security_manager) -> None:
-    """Create a DB-authenticated issuer with only the 4.1.2 guest-token permission."""
+    """Create a DB-authenticated issuer with only the guest-token permission."""
     username = os.environ.get("SUPERSET_EMBED_SERVICE_USERNAME", "").strip()
     password = os.environ.get("SUPERSET_EMBED_SERVICE_PASSWORD", "")
     if not username and not password:
