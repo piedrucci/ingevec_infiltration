@@ -19,6 +19,7 @@ CURATED_DATASETS = (
     "analytics.postventa_item_dashboard",
     "analytics.postventa_item_cause_dashboard",
     "analytics.postventa_item_cause_pareto",
+    "analytics.postventa_item_subcontractor_dashboard",
 )
 GROUP_RE = re.compile(r"^/superset/(division|project)/([A-Za-z0-9_-]{1,64})$")
 MAX_SCOPES = 100

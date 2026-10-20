@@ -91,6 +91,7 @@ Cause/category links SHALL preserve the following invariants:
 - Retired shared causes SHALL be inactive with no category links; category-qualified aliases distinguish causes with the same display name.
 - Each cause SHALL belong to at most one group through the nullable `app.failure_cause_category_link.group_id`; the group SHALL contain the cause's category (composite foreign key to `app.failure_cause_category_group_link`). A cause without a group is unassigned.
 - A cause used by several groups SHALL be split into one cause per group; group-qualified aliases distinguish causes with the same display name and category.
+- Each category SHALL map to at most one speciality through nullable `app.failure_cause_category.speciality_id`, shared by all groups containing the category. An item-cause is credited to the item's project subcontractor(s) of that speciality; a category without a speciality (e.g. Desnivel) credits no subcontractor.
 
 #### Scenario: Category-qualified cause
 - **WHEN** a cause is assigned to a category

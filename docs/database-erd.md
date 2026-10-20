@@ -1,6 +1,6 @@
 # Ingevec database ERD
 
-This diagram reflects the current `app` schema represented by the SQLAlchemy models and Alembic migrations through revision `20261020_0027`. Analytics views are not shown as physical tables; the reporting datasets are described below the diagram and in `docs/superset-analytics.md`.
+This diagram reflects the current `app` schema represented by the SQLAlchemy models and Alembic migrations through revision `20261020_0028`. Analytics views are not shown as physical tables; the reporting datasets are described below the diagram and in `docs/superset-analytics.md`.
 
 `PK` denotes a primary key, `FK` a foreign key, and `UK` a unique key. Attributes marked `nullable` are optional. Junction tables use composite primary keys. Crow's-foot relationships show whether the foreign key is required and whether multiple child rows are allowed.
 
@@ -15,6 +15,7 @@ erDiagram
     PROJECT ||--o{ POSTVENTA_ITEM : contains
     CLASSIFICATION ||--o{ POSTVENTA_ITEM : classifies
     SPECIALITY ||--o{ SUBCONTRACTOR : classifies
+    SPECIALITY |o--o{ FAILURE_CAUSE_CATEGORY : credits
     SUBCONTRACTOR ||--o{ PROJECT_SUBCONTRACTOR : assigned
     PROJECT ||--o{ PROJECT_SUBCONTRACTOR : uses
     EXCEL_IMPORT ||--o{ EXCEL_SOURCE_ROW : stages
@@ -116,6 +117,7 @@ erDiagram
         text description_es "nullable"
         boolean is_active
         timestamptz created_at
+        int speciality_id FK "nullable"
     }
     FAILURE_CAUSE {
         int id PK
@@ -212,6 +214,8 @@ Migration `20261006_0022` clears the legacy subcontractor catalog, removes its a
 Migration `20261008_0024` removes the `item_type` catalog and `postventa_item.item_type_id`. The original workbook cells remain in `excel_source_row.raw_cells` for provenance; normalized postventa items and analytics views no longer expose item type. The migration drops the item-type catalog and assignments, so restoring them requires a database backup.
 
 Migration `20261019_0025` adds `failure_cause_category_link.group_id`, its composite foreign key and index, and makes the cause analytics views group-aware. It is additive and approved for automatic deployment; assigning groups, splitting causes used by several groups, and replacing item causes is the separate reviewed operation in `docs/cause-group-assignment.md`.
+
+Migration `20261020_0028` adds nullable `failure_cause_category.speciality_id` (foreign key `ON DELETE RESTRICT`, indexed) and links categories by code: `WINDOWS` → Ventana, `FACADE` → Fachada, `SHEET_METAL` → Hojalateria, `WATERPROOFING` → Impermeabilización, `INSTALLATIONS` → Sanitario; `SLOPE` (Desnivel), `DOWNLOAD` and `OTHER` have none. It aborts if a mapped category or speciality is missing. It also creates `analytics.postventa_item_subcontractor_dashboard`, which credits each item-cause to the item's project subcontractor of the category's speciality (see `docs/superset-analytics.md`). It is additive and approved for automatic deployment.
 
 Migration `20261020_0027` adds the `Hojalateria` speciality and the case/accent-insensitive unique indexes `uq_speciality_name_normalized` and `uq_subcontractor_name_normalized`. It aborts with the conflicting rows when duplicate names already exist and moves both identity sequences past rows inserted with explicit IDs. It is additive and approved for automatic deployment. Subcontractors and project links are then loaded with `app.commands.import_subcontractor_seed`; a name already used by another speciality is stored as `<name> <speciality>`, with the speciality written without accents.
 

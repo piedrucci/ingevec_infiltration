@@ -127,10 +127,10 @@ def test_actual_release_blocks_the_manual_item_type_drop():
     with pytest.raises(MigrationGateError, match="20261008_0024"):
         plan_pending_revisions(script, ("20261008_0023",), real_policy)
 
-    # The additive cause-group column, map view columns and speciality seed after 0024 are approved for automatic apply.
+    # The additive revisions after 0024 (cause groups, map columns, Hojalateria, category specialities) auto-apply.
     assert plan_pending_revisions(script, ("20261008_0024",), real_policy) == (
-        "20261020_0027",
-        ["20261019_0025", "20261020_0026", "20261020_0027"],
+        "20261020_0028",
+        ["20261019_0025", "20261020_0026", "20261020_0027", "20261020_0028"],
     )
 
 

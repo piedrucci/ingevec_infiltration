@@ -15,6 +15,7 @@ ANALYTICS_VIEWS = (
     "postventa_item_dashboard",
     "postventa_item_cause_dashboard",
     "postventa_item_cause_pareto",
+    "postventa_item_subcontractor_dashboard",
 )
 VIEWER_ROLE = "Ingevec Viewer"
 BUILDER_ROLE = "Ingevec Dashboard Builder"
@@ -96,6 +97,13 @@ DATASET_METRICS = {
             "ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) / "
             "NULLIF(SUM(COUNT(DISTINCT postventa_item_public_id)) OVER (), 0)",
             "Cumulative share of distinct item/cause pairs after chart filters are applied.",
+        ),
+    },
+    "postventa_item_subcontractor_dashboard": {
+        "items_distinct": (
+            "Ítems",
+            "COUNT(DISTINCT postventa_item_public_id)",
+            "Distinct items with a cause in the credited subcontractor's speciality; assignments without such items count 0.",
         ),
     },
 }
