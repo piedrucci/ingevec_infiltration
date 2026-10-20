@@ -25,6 +25,9 @@ ISSUER_ROLE = "Ingevec Guest Token Issuer"
 # permissions. Keep ordinary viewers read-only and grant authoring separately.
 VIEWER_PERMISSIONS = {
     ("can_csv", "Superset"),
+    # Legacy charts (all deck.gl maps in 4.1.2) load data through /superset/explore_json/,
+    # which still checks dataset access and row-level security.
+    ("can_explore_json", "Superset"),
     ("can_read", "Chart"),
     ("can_read", "Dashboard"),
     ("can_read", "DashboardFilterStateRestApi"),
