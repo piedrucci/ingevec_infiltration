@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -82,6 +82,41 @@ describe("AnalyticsPage embedding lifecycle", () => {
     await expect(params.fetchGuestToken()).rejects.toThrow("temporary API error");
     expect(await screen.findByRole("alert")).toBeTruthy();
     expect(unmount).toHaveBeenCalledTimes(1);
+    view.unmount();
+  });
+
+  it("toggles fullscreen on the dashboard container and follows the browser state", async () => {
+    let current: Element | null = null;
+    Object.defineProperty(document, "fullscreenEnabled", { configurable: true, value: true });
+    Object.defineProperty(document, "fullscreenElement", { configurable: true, get: () => current });
+    const change = (element: Element | null) => { current = element; document.dispatchEvent(new Event("fullscreenchange")); };
+    const requestFullscreen = vi.fn(function (this: HTMLElement) { change(this); return Promise.resolve(); });
+    HTMLElement.prototype.requestFullscreen = requestFullscreen;
+    document.exitFullscreen = vi.fn(() => { change(null); return Promise.resolve(); });
+    try {
+      const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      const view = render(<QueryClientProvider client={queryClient}><AnalyticsPage /></QueryClientProvider>);
+
+      fireEvent.click(await screen.findByRole("button", { name: "Pantalla completa" }));
+      await waitFor(() => expect(requestFullscreen).toHaveBeenCalledTimes(1));
+      const container = requestFullscreen.mock.contexts[0] as HTMLElement;
+      expect(container.contains(embedDashboard.mock.calls[0][0].mountPoint)).toBe(true);
+      expect(screen.getByRole("button", { name: "Salir de pantalla completa" }).getAttribute("aria-pressed")).toBe("true");
+
+      act(() => change(null));  // Esc exits through the browser
+      expect(await screen.findByRole("button", { name: "Pantalla completa" })).toBeTruthy();
+      view.unmount();
+    } finally {
+      delete (document as { fullscreenEnabled?: boolean }).fullscreenEnabled;
+      delete (document as { fullscreenElement?: Element | null }).fullscreenElement;
+    }
+  });
+
+  it("hides the fullscreen button where the browser does not support it", async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const view = render(<QueryClientProvider client={queryClient}><AnalyticsPage /></QueryClientProvider>);
+    await waitFor(() => expect(embedDashboard).toHaveBeenCalledTimes(1));
+    expect(screen.queryByRole("button", { name: "Pantalla completa" })).toBeNull();
     view.unmount();
   });
 });
