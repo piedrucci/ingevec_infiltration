@@ -1,5 +1,5 @@
 {
-  "auto_apply": ["20261019_0025", "20261020_0026", "20261020_0027", "20261020_0028"],
+  "auto_apply": ["20261019_0025", "20261020_0026", "20261020_0027", "20261020_0028", "20261020_0029"],
   "manual": {
     "20261008_0023": "Requires the reviewed category-specific cause split before application; see docs/cause-category-split.md.",
     "20261008_0024": "Drops item-type data and requires a reviewed maintenance deployment with a Neon recovery point."

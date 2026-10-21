@@ -1,6 +1,6 @@
 # Superset analytics datasets
 
-The Superset provisioner registers four read-only datasets from the `analytics`
+The Superset provisioner registers five read-only datasets from the `analytics`
 schema in the `Ingevec Postventa Analytics` database:
 
 | Dataset | Grain | Intended use |
@@ -9,6 +9,7 @@ schema in the `Ingevec Postventa Analytics` database:
 | `analytics.postventa_item_cause_dashboard` | Item × assigned cause (× category groups only for unassigned causes) | Cause, category, and group analysis |
 | `analytics.postventa_item_cause_pareto` | Item × assigned cause (× category groups only for unassigned causes) | Filter-aware Pareto charts by cause |
 | `analytics.postventa_item_subcontractor_dashboard` | Item × assigned cause × credited subcontractor, plus one row per project assignment without matching items | Subcontractor rankings and per-subcontractor project lists |
+| `analytics.postventa_project_dashboard` | One row per project | Project profile values and averages across projects (months from municipal reception to the first item) |
 
 The item dataset can produce multiple rows for an item if multiple documents are
 associated later. The cause datasets have one row per item and assigned cause when
@@ -29,6 +30,18 @@ items; a group, category, cause or date filter removes those rows. Use its
 subcontractors of the same speciality on one project are both credited. For
 cascading filters, make the `subcontratista` native filter depend on the
 `especialidad` filter.
+
+The project dataset (migration `20261020_0029`) has one row per project, including
+projects without items (0 items, null dates). `fecha_primera_incidencia` is the
+oldest `request_date` among all of the project's items, so item-level dashboard
+filters do not change it. `meses_hasta_primera_incidencia` counts full months
+(`AGE`, rounded down) from `fecha_recepcion_municipal` to that date and is negative
+when the first item predates the reception. `incidencias`, `conciliadas` and
+`pendientes` are distinct item counts. Average project values here
+(`meses_promedio` = `AVG(meses_hasta_primera_incidencia)`): an `AVG` over a project
+column on the item datasets weights projects by their number of rows. The
+`proyecto` and `gerente_divisional` native filters apply when the chart is in
+their scope; `especialidad` and `subcontratista` do not.
 
 Jinja templating is enabled (`ENABLE_TEMPLATE_PROCESSING`). Superset cannot hide
 a chart conditionally; to keep a chart empty until a dashboard filter has a
@@ -110,12 +123,12 @@ The provisioner stores the reader password through `Database.set_sqlalchemy_uri`
 
 The React app exposes the published Superset dashboard at `/analytics` through the official `@superset-ui/embedded-sdk` 0.4.0. Embedding is opt-in (`SUPERSET_EMBEDDING_ENABLED=false` by default). The API issues short-lived, dashboard-only guest tokens; it never accepts a dashboard ID or row scope from the browser. The guest token expires after five minutes and the SDK requests a new one through the authenticated API client. Guest-token responses are not cacheable.
 
-The user needs both the existing Keycloak `admin` application role and one analytics realm role: `superset_admin`, `superset_viewer`, or `superset_dashboard_builder`. An app administrator without an analytics role is denied. Only `superset_admin` receives global analytics scope. Viewer and builder tokens receive the union of their `/superset/division/<numeric-id>` and `/superset/project/<project-id>` groups. Missing or malformed scope fails closed. The same global row rule is attached to all four curated analytics views, which expose `division_manager_id` and `numero_obra`; Superset's guest security hook denies guests on uncurated datasets and when an applicable rule is missing.
+The user needs both the existing Keycloak `admin` application role and one analytics realm role: `superset_admin`, `superset_viewer`, or `superset_dashboard_builder`. An app administrator without an analytics role is denied. Only `superset_admin` receives global analytics scope. Viewer and builder tokens receive the union of their `/superset/division/<numeric-id>` and `/superset/project/<project-id>` groups. Missing or malformed scope fails closed. The same global row rule is attached to all five curated analytics views, which expose `division_manager_id` and `numero_obra`; Superset's guest security hook denies guests on uncurated datasets and when an applicable rule is missing.
 
 ### Configure an environment
 
 1. In the Keycloak `ingevec-web` client, add the full-path group-membership mapper named `ingevec analytics scope groups`. The realm JSON templates define this mapper for new local realms. Existing Keycloak clients do not gain a mapper just because the realm import file changed; update the live client and have affected users sign out and sign in again so their access tokens contain `groups`.
-2. Generate a private, random `SUPERSET_GUEST_TOKEN_JWT_SECRET` with at least 32 characters. Set the same value only on the Superset service. Set a dedicated, strong password for `SUPERSET_EMBED_SERVICE_USERNAME` / `SUPERSET_EMBED_SERVICE_PASSWORD` in the API and Superset provisioner environment. The provisioner creates a database-authenticated issuer account with only the `can_read` permission needed for CSRF retrieval and `can_grant_guest_token` on `SecurityRestApi`; it also provisions the read-only `Ingevec Embedded Viewer` role for the four curated datasets. Never reuse the Superset bootstrap admin account.
+2. Generate a private, random `SUPERSET_GUEST_TOKEN_JWT_SECRET` with at least 32 characters. Set the same value only on the Superset service. Set a dedicated, strong password for `SUPERSET_EMBED_SERVICE_USERNAME` / `SUPERSET_EMBED_SERVICE_PASSWORD` in the API and Superset provisioner environment. The provisioner creates a database-authenticated issuer account with only the `can_read` permission needed for CSRF retrieval and `can_grant_guest_token` on `SecurityRestApi`; it also provisions the read-only `Ingevec Embedded Viewer` role for the five curated datasets. Never reuse the Superset bootstrap admin account.
 3. Set `SUPERSET_PUBLIC_URL` to the browser-facing Superset origin and `SUPERSET_INTERNAL_URL` to the Compose service URL (normally `http://superset:8088`). Set `SUPERSET_EMBED_ALLOWED_ORIGINS` to the exact React app origin (for local Vite, normally `http://localhost:5173`; production, `https://app.capix.cloud`). These origins drive both Superset's iframe CSP and its embedded-dashboard referrer check.
 4. In Superset, open Dashboard Principal's **Edit dashboard** menu, choose **Embed**, enable embedding, and allow only the same app origin. Copy the generated embedded dashboard UUID, which differs from the numeric dashboard ID and ordinary dashboard UUID, to `SUPERSET_EMBEDDED_DASHBOARD_UUID` for that environment.
 5. Run the `superset-provisioner` once with the intended private environment file, recreate Superset so it loads its signing secret and CSP, then start/redeploy the API with embedding enabled. The deployment starts with embedding disabled until these steps are complete. Do not put any of these secrets in Vite variables.

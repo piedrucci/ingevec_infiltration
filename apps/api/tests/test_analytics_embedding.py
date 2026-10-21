@@ -91,7 +91,7 @@ def test_token_broker_uses_fixed_dashboard_and_scope(monkeypatch):
 
     assert (token, ttl) == ("private-guest-token", 300)
     assert calls[2][2]["resources"] == [{"type": "dashboard", "id": "embed-uuid"}]
-    assert calls[2][2]["rls"] == [{"clause": "numero_obra IN ('P-1')"}] * 4
+    assert calls[2][2]["rls"] == [{"clause": "numero_obra IN ('P-1')"}] * 5
 
 
 def test_failed_upstream_response_does_not_expose_response_body(monkeypatch, caplog):

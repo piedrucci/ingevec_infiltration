@@ -56,7 +56,8 @@ auto_apply. Actualmente están aprobadas 20261019_0025 (columna aditiva
 group_id; ver docs/cause-group-assignment.md), 20261020_0026 (columnas de mapa
 en la vista analítica) y 20261020_0027 (especialidad Hojalateria e índices
 únicos de nombres; aborta si ya hay nombres duplicados) y 20261020_0028
-(especialidad por categoría y vista analítica de subcontratistas); si la cadena pendiente incluye
+(especialidad por categoría y vista analítica de subcontratistas) y
+20261020_0029 (vista analítica por proyecto); si la cadena pendiente incluye
 una revisión manual, como 0023 o 0024, el gate bloquea el despliegue completo.
 Las revisiones no se aplican automáticamente hasta que se revisen y
 clasifiquen. Agrega cada nueva revisión

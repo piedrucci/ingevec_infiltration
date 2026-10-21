@@ -185,6 +185,7 @@ class KeycloakSecurityManager(SupersetSecurityManager):
             "postventa_item_cause_dashboard",
             "postventa_item_cause_pareto",
             "postventa_item_subcontractor_dashboard",
+            "postventa_project_dashboard",
         }:
             return filters
         role_names = {role.name for role in self.get_user_roles(g.user)}
@@ -215,6 +216,7 @@ class KeycloakSecurityManager(SupersetSecurityManager):
             "postventa_item_cause_dashboard",
             "postventa_item_cause_pareto",
             "postventa_item_subcontractor_dashboard",
+            "postventa_project_dashboard",
         }
         if not curated:
             return [{"clause": "1 = 0"}]

@@ -16,6 +16,7 @@ ANALYTICS_VIEWS = (
     "postventa_item_cause_dashboard",
     "postventa_item_cause_pareto",
     "postventa_item_subcontractor_dashboard",
+    "postventa_project_dashboard",
 )
 VIEWER_ROLE = "Ingevec Viewer"
 BUILDER_ROLE = "Ingevec Dashboard Builder"
@@ -106,6 +107,33 @@ DATASET_METRICS = {
             "Ítems",
             "COUNT(DISTINCT postventa_item_public_id)",
             "Distinct items with a cause in the credited subcontractor's speciality; assignments without such items count 0.",
+        ),
+    },
+    "postventa_project_dashboard": {
+        "meses_promedio": (
+            "Meses promedio hasta 1ª incidencia",
+            "AVG(meses_hasta_primera_incidencia)",
+            "Average across projects (one row per project); projects without items or reception date are ignored.",
+        ),
+        "proyectos": (
+            "Proyectos",
+            "COUNT(DISTINCT numero_obra)",
+            "Distinct projects.",
+        ),
+        "incidencias_total": (
+            "Incidencias",
+            "SUM(incidencias)",
+            "Distinct items summed over projects.",
+        ),
+        "conciliadas_total": (
+            "Conciliadas",
+            "SUM(conciliadas)",
+            "Items with at least one assigned failure cause, summed over projects.",
+        ),
+        "pendientes_total": (
+            "Pendientes",
+            "SUM(pendientes)",
+            "Items without an assigned failure cause, summed over projects.",
         ),
     },
 }
