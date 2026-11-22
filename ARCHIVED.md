@@ -7,6 +7,7 @@ Archived on 2026-11-22. Production was stopped and nothing is deployed. This fil
 - Dokploy compose project `ingevec-postventa-production` is stopped, not deleted. Its six volumes were kept on the Hostinger VPS: `keycloak_data`, `nats_data`, `redis_data`, `seaweedfs_data`, `superset_db_data`, `superset_home`.
 - Neon project `Ingevec` (AWS US East 2, Postgres 18): branches `production` (default) and `development`. The compute is suspended when idle. A snapshot of `production` was taken at archive time.
 - Public domains `app`, `api`, `auth` and `bi` on `capix.cloud` return an error page.
+- Autodeploy is turned off on purpose in the Dokploy compose project. With it on, any push to `main` redeploys the stack, runs the `migrate` job and wakes the Neon compute. Keep it off until you intend to restore.
 
 ## Backups (private, not in Git)
 
@@ -22,7 +23,7 @@ These files contain business data. Keep them private.
 ## Restore order
 
 1. Restore the database: from the Neon snapshot, or by restoring the dump into the Neon project with a Postgres 18 `pg_restore`. Compare row counts afterwards.
-2. Recreate the Dokploy compose project from this repository (`compose.yaml` + `compose.prod.yaml`) and re-enter the saved environment variables. If the VPS volumes are gone, restore the SeaweedFS, Keycloak and Superset tarballs/dumps into new volumes first.
+2. Recreate the Dokploy compose project from this repository (`compose.yaml` + `compose.prod.yaml`) and re-enter the saved environment variables. Turn Autodeploy back on only after the restore is verified. If the VPS volumes are gone, restore the SeaweedFS, Keycloak and Superset tarballs/dumps into new volumes first.
 3. Follow `docs/deployment.md`. The migration policy in `AGENTS.md` still applies: do not stamp Alembic revisions to bypass discrepancies, and keep manual revisions manual.
 4. Keep `SUPERSET_EMBEDDING_ENABLED=false` until the checks in `docs/superset-analytics.md` are complete. Import the Superset dashboard ZIP following `docs/superset-analytics.md` (map database and dataset UUIDs first).
 5. Verify `https://api.capix.cloud/health`, a non-admin viewer's row scope in Superset, and the PDF/item link totals.
