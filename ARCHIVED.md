@@ -11,10 +11,10 @@ Archived on 2026-11-22. Production was stopped and nothing is deployed. This fil
 
 ## Backups (private, not in Git)
 
-Kept outside this repository on the maintainer's machine and on a second copy:
+Kept in `data/backup/` in the maintainer's local clone (git-ignored, never committed). This is not a substitute for an off-machine copy:
 
 - Neon `production` dump (`pg_dump` custom format, Postgres 18 client) with SHA-256 and row counts (items 681, source rows 1233, documents 62, cause links 759, projects 51).
-- SeaweedFS data tarball (PDFs and source workbooks), Keycloak database dump, Superset database dump, Superset home tarball, with a `SHA256SUMS` file.
+- SeaweedFS data tarball (PDFs and source workbooks), Keycloak database dump, Superset database dump, Superset home tarball.
 - Superset dashboard export ZIP (dashboard, charts, datasets, database connection).
 - Dokploy environment variables, stored separately in encrypted storage. They are not in this repo.
 
